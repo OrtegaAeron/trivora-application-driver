@@ -1,3 +1,11 @@
+export interface CodingInfo {
+  codingDay: string;
+  isCodingToday: boolean;
+  canOperate: boolean;
+  restrictedDigits: string;
+  scheduleHours: string;
+}
+
 export interface DriverProfile {
   id: string;
   name: string;
@@ -9,6 +17,7 @@ export interface DriverProfile {
   totalTrips: number;
   isOnline: boolean;
   avatarUrl?: string;
+  codingInfo?: CodingInfo;
 }
 
 export interface PassengerInfo {
@@ -57,6 +66,23 @@ export interface AppNotification {
   title: string;
   message: string;
   time: string;
-  type: 'booking' | 'cancellation' | 'completed' | 'payment' | 'system';
+  type: 'booking' | 'cancellation' | 'completed' | 'payment' | 'system' | 'violation';
   unread: boolean;
+  violationId?: string;
 }
+
+export interface ViolationRecord {
+  id: string;
+  referenceNo: string;
+  date: string;
+  time: string;
+  location: string;
+  plateNumber: string;
+  violationType: string;
+  category: 'Number Coding Violation' | 'Route Violation' | 'Safety Violation';
+  fineAmount: string;
+  status: 'Unpaid' | 'Paid' | 'Under Review';
+  description: string;
+  issuedBy: string;
+}
+

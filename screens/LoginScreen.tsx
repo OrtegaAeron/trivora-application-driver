@@ -160,7 +160,7 @@ export default function LoginScreen() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.loginText}>
-                LOGIN AS DRIVER
+                LOGIN
               </Text>
             )}
           </TouchableOpacity>

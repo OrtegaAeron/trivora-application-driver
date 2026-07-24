@@ -1,4 +1,4 @@
-import { DriverProfile, BookingRequest, TripHistoryItem, AppNotification, QuickStats } from '../types';
+import { DriverProfile, BookingRequest, TripHistoryItem, AppNotification, QuickStats, ViolationRecord } from '../types';
 
 export const MOCK_DRIVER: DriverProfile = {
   id: 'DRV-102',
@@ -9,7 +9,14 @@ export const MOCK_DRIVER: DriverProfile = {
   toda: 'TODA Zone 1 - Poblacion, Nasugbu',
   rating: 4.9,
   totalTrips: 342,
-  isOnline: true,
+  isOnline: false,
+  codingInfo: {
+    codingDay: 'Monday',
+    isCodingToday: true,
+    canOperate: false,
+    restrictedDigits: '1 and 2',
+    scheduleHours: '7:00 AM - 7:00 PM',
+  },
 };
 
 export const MOCK_BOOKING_REQUEST: BookingRequest = {
@@ -90,6 +97,37 @@ export const MOCK_HISTORY: TripHistoryItem[] = [
   },
 ];
 
+export const MOCK_VIOLATIONS: ViolationRecord[] = [
+  {
+    id: 'VIO-2026-001',
+    referenceNo: 'VIO-98402',
+    date: '24 Jul 2026',
+    time: '08:45 AM',
+    location: 'J.P. Laurel St. cor. F. Alix St., Nasugbu',
+    plateNumber: 'TRV-102',
+    violationType: 'Vehicle Coding Restriction Violation',
+    category: 'Number Coding Violation',
+    fineAmount: '₱500.00',
+    status: 'Unpaid',
+    description: 'Vehicle operated on restricted Monday coding day (Plate ending in 2). System detected active driver status during restricted hours (7:00 AM - 7:00 PM).',
+    issuedBy: 'Nasugbu LGU Traffic Management Division',
+  },
+  {
+    id: 'VIO-2026-002',
+    referenceNo: 'VIO-77194',
+    date: '10 Jun 2026',
+    time: '02:15 PM',
+    location: 'Poblacion Plaza Zone',
+    plateNumber: 'TRV-102',
+    violationType: 'Unauthorized Parking in Loading Zone',
+    category: 'Route Violation',
+    fineAmount: '₱300.00',
+    status: 'Paid',
+    description: 'Stationary vehicle parked beyond designated TODA waiting bay.',
+    issuedBy: 'Nasugbu LGU Traffic Enforcement',
+  },
+];
+
 export const MOCK_NOTIFICATIONS: AppNotification[] = [
   {
     id: 'NOTIF-1',
@@ -124,3 +162,5 @@ export const MOCK_NOTIFICATIONS: AppNotification[] = [
     unread: false,
   },
 ];
+
+

@@ -9,12 +9,14 @@ import {
   Image,
 } from 'react-native';
 
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
 import { MOCK_HISTORY } from '../services/api';
 import { TripHistoryItem } from '../types';
 
 export default function TripHistoryScreen() {
+  const navigation = useNavigation<any>();
   const [history, setHistory] = useState<TripHistoryItem[]>(MOCK_HISTORY);
 
   const renderItem = ({ item }: { item: TripHistoryItem }) => (
@@ -73,7 +75,10 @@ export default function TripHistoryScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.detailsLink}>
+        <TouchableOpacity
+          style={styles.detailsLink}
+          onPress={() => navigation.navigate('TripDetail', { trip: item })}
+        >
           <Text style={styles.detailsLinkText}>Trip Details ➔</Text>
         </TouchableOpacity>
       </View>

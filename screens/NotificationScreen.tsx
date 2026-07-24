@@ -26,6 +26,8 @@ export default function NotificationScreen() {
         return { icon: 'checkmark-circle', color: COLORS.secondary, bg: '#E0E7FF' };
       case 'cancellation':
         return { icon: 'close-circle', color: COLORS.danger, bg: '#FEE2E2' };
+      case 'violation':
+        return { icon: 'warning', color: COLORS.danger, bg: '#FEF2F2' };
       default:
         return { icon: 'notifications', color: COLORS.gray, bg: '#F3F4F6' };
     }

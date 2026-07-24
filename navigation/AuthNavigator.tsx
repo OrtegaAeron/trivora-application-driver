@@ -15,6 +15,7 @@ import TripAcceptedScreen from '../screens/TripAcceptedScreen';
 import TripSummaryScreen from '../screens/TripSummaryScreen';
 import RatePassengerScreen from '../screens/RatePassengerScreen';
 import MapScreen from '../screens/MapScreen';
+import TripDetailScreen from '../screens/TripDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -89,6 +90,11 @@ export default function AuthNavigator() {
       <Stack.Screen
         name="RatePassenger"
         component={RatePassengerScreen}
+      />
+
+      <Stack.Screen
+        name="TripDetail"
+        component={TripDetailScreen}
       />
     </Stack.Navigator>
   );
