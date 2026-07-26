@@ -17,8 +17,8 @@ interface IncomingBookingCardProps {
 
 export default function IncomingBookingCard({ hasRequest = true }: IncomingBookingCardProps) {
   const navigation = useNavigation<any>();
-  const [activeRequest, setActiveRequest] = useState<any>(null);
-  const [todaZoneName, setTodaZoneName] = useState<string>('TODA Zone');
+  const [requestsList, setRequestsList] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
 
   const getHost = () => {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
@@ -36,20 +36,17 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
 
       try {
         const response = await fetch(`http://${host}:8000/api/v1/driver/bookings/pending`, {
-          headers: {
-            'Accept': 'application/json',
-          },
+          headers: { 'Accept': 'application/json' },
         });
         const text = await response.text();
         if (!text || text.trim().length === 0) {
-          setActiveRequest(null);
+          setRequestsList([]);
           return;
         }
         const data = JSON.parse(text);
 
         if (data.requests && data.requests.length > 0) {
-          const req = data.requests[0];
-          setActiveRequest({
+          const parsed = data.requests.map((req: any) => ({
             id: req.id,
             bookingCode: req.booking_code,
             fare: `₱${parseFloat(req.fare_amount).toFixed(2)}`,
@@ -72,10 +69,13 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
               mobile: req.passenger?.mobile_number || '09191234567',
             },
             todaName: req.toda_zone?.name || 'TODA Brgy. 8',
-          });
-          setTodaZoneName(req.toda_zone?.name || 'TODA Zone');
+          }));
+
+          setRequestsList(parsed);
+          // Auto adjust index if queue shrank
+          setCurrentIndex((prev) => (prev >= parsed.length ? 0 : prev));
         } else {
-          setActiveRequest(null);
+          setRequestsList([]);
         }
       } catch (e) {
         console.log('[Driver IncomingCard] Poll notice:', e);
@@ -87,45 +87,104 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
     return () => clearInterval(intervalId);
   }, [hasRequest]);
 
-  if (!hasRequest || !activeRequest) {
+  if (!hasRequest || requestsList.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="wifi-outline" size={28} color={COLORS.primary} />
+        <Ionicons name="radio-outline" size={28} color={COLORS.primary} />
         <Text style={styles.emptyText}>Waiting for incoming TODA booking requests...</Text>
       </View>
     );
   }
 
+  const activeRequest = requestsList[currentIndex] || requestsList[0];
+  const totalCount = requestsList.length;
+
+  const nextRequest = () => {
+    setCurrentIndex((prev) => (prev + 1) % totalCount);
+  };
+
+  const prevRequest = () => {
+    setCurrentIndex((prev) => (prev - 1 + totalCount) % totalCount);
+  };
+
   return (
     <View style={styles.cardWrapper}>
+      {/* QUEUE COUNTER HEADER */}
       <View style={styles.previewHeader}>
-        <View style={styles.tagBadge}>
-          <Text style={styles.tagText}>⚡ INCOMING REQUEST ({todaZoneName})</Text>
+        <View style={styles.queueCounterPill}>
+          <Ionicons name="flash" size={14} color="#F59E0B" />
+          <Text style={styles.queueCounterText}>
+            REQUEST {currentIndex + 1} OF {totalCount}
+          </Text>
         </View>
+
+        {totalCount > 1 && (
+          <View style={styles.navSteppers}>
+            <TouchableOpacity style={styles.stepperBtn} onPress={prevRequest}>
+              <Ionicons name="chevron-back" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.stepperBtn} onPress={nextRequest}>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <Text style={styles.fareText}>{activeRequest.fare}</Text>
       </View>
 
+      {/* PASSENGER & ROUTE DETAILS */}
       <View style={styles.passengerRow}>
         <Ionicons name="person-circle" size={40} color={COLORS.primary} />
         <View style={styles.passengerMeta}>
           <Text style={styles.passengerName}>{activeRequest.passenger.name}</Text>
-          <Text style={styles.routeText} numberOfLines={1}>
-            {activeRequest.pickupLocation} ➔ {activeRequest.destination}
-          </Text>
+          <Text style={styles.passengerSub}>Rating: 5.0 · Passenger</Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('BookingRequest', { bookingRequest: activeRequest })}
-      >
-        <Image
-          source={require('../assets/tricycle.png')}
-          style={styles.tricycleIcon}
-        />
-        <Text style={styles.text}>VIEW BOOKING DETAILS</Text>
-      </TouchableOpacity>
+      {/* ROUTE ADDRESSES (RESPONSIVE WRAPPING LAYOUT) */}
+      <View style={styles.routeWrapper}>
+        <View style={styles.addressRow}>
+          <Ionicons name="location" size={18} color={COLORS.success} style={styles.addressIcon} />
+          <View style={styles.addressMeta}>
+            <Text style={styles.addressLabel}>PICKUP LOCATION</Text>
+            <Text style={styles.addressText}>{activeRequest.pickupLocation}</Text>
+          </View>
+        </View>
+
+        <View style={styles.addressRow}>
+          <Ionicons name="flag" size={18} color={COLORS.secondary} style={styles.addressIcon} />
+          <View style={styles.addressMeta}>
+            <Text style={styles.addressLabel}>DESTINATION</Text>
+            <Text style={styles.addressText}>{activeRequest.destination}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* ACTION BUTTONS */}
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={styles.button}
+          activeOpacity={0.85}
+          onPress={() =>
+            navigation.navigate('BookingRequest', {
+              bookingRequest: activeRequest,
+            })
+          }
+        >
+          <Ionicons name="eye-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.buttonText}>VIEW DETAILS & ACCEPT</Text>
+        </TouchableOpacity>
+
+        {totalCount > 1 && (
+          <TouchableOpacity
+            style={styles.skipBtn}
+            activeOpacity={0.7}
+            onPress={nextRequest}
+          >
+            <Text style={styles.skipBtnText}>NEXT ({totalCount - 1})</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -186,37 +245,107 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: COLORS.black,
   },
-
-  routeText: {
-    fontSize: 13,
+  passengerSub: {
+    fontSize: 12,
     color: COLORS.gray,
     marginTop: 2,
   },
 
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 20,
-    padding: 18,
+  routeWrapper: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  addressIcon: {
+    marginTop: 2,
+    marginRight: 10,
+  },
+  addressMeta: {
+    flex: 1,
+    flexShrink: 1,
+  },
+  addressLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  addressText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginTop: 2,
+    lineHeight: 18,
+    flexWrap: 'wrap',
+  },
 
+  queueCounterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  queueCounterText: {
+    color: '#D97706',
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  navSteppers: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  button: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: 16,
+    paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-
-    elevation: 5,
+    elevation: 4,
   },
-
-  tricycleIcon: {
-    width: 32,
-    height: 32,
-    tintColor: '#FFFFFF',
-    resizeMode: 'contain',
-  },
-
-  text: {
+  buttonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginLeft: 10,
+  },
+  skipBtn: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  skipBtnText: {
+    color: '#475569',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 
   emptyContainer: {
@@ -228,10 +357,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 3,
   },
-
   emptyText: {
     color: COLORS.gray,
-    fontSize: 15,
+    fontSize: 14,
     marginTop: 8,
     fontWeight: '500',
   },

@@ -30,7 +30,7 @@ export default function TripSummaryScreen() {
             color={COLORS.success}
             style={styles.icon}
           />
-          <Text style={styles.title}>Trip Completed!</Text>
+          <Text style={styles.title}>Trip Completed</Text>
           <Text style={styles.subtitle}>
             Great job! You have safely completed the ride.
           </Text>
@@ -65,7 +65,7 @@ export default function TripSummaryScreen() {
               <Ionicons name="person-circle" size={45} color={COLORS.primary} />
               <View style={styles.passengerMeta}>
                 <Text style={styles.passengerName}>{booking.passenger.name}</Text>
-                <Text style={styles.passengerRating}>⭐ {booking.passenger.rating} Rating</Text>
+                <Text style={styles.passengerRating}>Rating: 5.0</Text>
               </View>
             </View>
           </View>

@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -8,18 +7,43 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
-import { MOCK_HISTORY } from '../services/api';
-import { TripHistoryItem } from '../types';
 
 export default function TripHistoryScreen() {
   const navigation = useNavigation<any>();
-  const [history, setHistory] = useState<TripHistoryItem[]>(MOCK_HISTORY);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const renderItem = ({ item }: { item: TripHistoryItem }) => (
+  const getHost = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return window.location.hostname;
+    }
+    return '192.168.254.205';
+  };
+
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        const host = getHost();
+        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        const list = data.bookings || data.history || [];
+        setHistory(list);
+      } catch (e) {
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchHistory();
+  }, []);
+
+  const renderItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
       {/* CARD TOP ROW */}
       <View style={styles.topRow}>
@@ -28,10 +52,10 @@ export default function TripHistoryScreen() {
           style={styles.tricycleIcon}
         />
         <View style={styles.meta}>
-          <Text style={styles.passengerName}>{item.passengerName}</Text>
-          <Text style={styles.date}>{item.date}</Text>
+          <Text style={styles.passengerName}>{item.passenger?.user?.name || 'Passenger'}</Text>
+          <Text style={styles.date}>{new Date(item.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text>
         </View>
-        <Text style={styles.fare}>{item.fare}</Text>
+        <Text style={styles.fare}>₱{item.fare_amount || '45.00'}</Text>
       </View>
 
       <View style={styles.divider} />
@@ -40,14 +64,14 @@ export default function TripHistoryScreen() {
       <View style={styles.locationRow}>
         <Ionicons name="location" size={18} color={COLORS.primary} />
         <Text style={styles.locationText} numberOfLines={1}>
-          {item.pickup}
+          {item.pickup_name || 'Pickup Point'}
         </Text>
       </View>
 
       <View style={styles.locationRow}>
         <Ionicons name="flag" size={18} color={COLORS.secondary} />
         <Text style={styles.locationText} numberOfLines={1}>
-          {item.destination}
+          {item.dropoff_name || 'Destination'}
         </Text>
       </View>
 

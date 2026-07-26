@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
@@ -38,12 +38,25 @@ const CANCELLED_STEPS = [
 export default function TripDetailScreen() {
   const navigation = useNavigation<any>();
   const route      = useRoute<any>();
-  const trip: TripHistoryItem = route.params?.trip;
+  const rawTrip: any = route.params?.trip;
 
-  if (!trip) return null;
+  if (!rawTrip) return null;
 
-  const extras  = TRIP_EXTRAS[trip.id] ?? { distance: '—', payment: 'Cash', passengerRating: 4.5, duration: '—' };
-  const isCompleted = trip.status === 'Completed';
+  const tripId = rawTrip.booking_code || rawTrip.bookingCode || rawTrip.id || 'BK-TRIP';
+  const tripDate = rawTrip.created_at || rawTrip.requested_at
+    ? new Date(rawTrip.created_at || rawTrip.requested_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : (rawTrip.date || 'Today');
+  const fareDisplay = rawTrip.fare_amount
+    ? `₱${parseFloat(rawTrip.fare_amount).toFixed(2)}`
+    : (rawTrip.fare || '₱45.00');
+  const passengerName = rawTrip.passenger?.user?.name || rawTrip.passengerName || 'Passenger';
+  const pickupLocation = rawTrip.pickup_name || rawTrip.pickup || 'Pickup Point';
+  const dropoffLocation = rawTrip.dropoff_name || rawTrip.destination || 'Destination Point';
+  const rawStatus = (rawTrip.status || 'completed').toLowerCase();
+  const isCompleted = rawStatus === 'completed';
+  const statusDisplay = isCompleted ? 'Completed' : 'Cancelled';
+
+  const extras  = TRIP_EXTRAS[tripId] ?? { distance: rawTrip.distance_km ? `${rawTrip.distance_km} km` : '2.5 km', payment: (rawTrip.payment_method || 'Cash').toUpperCase(), passengerRating: 5.0, duration: rawTrip.estimated_duration_mins ? `${rawTrip.estimated_duration_mins} mins` : '8 mins' };
   const steps = isCompleted ? COMPLETED_STEPS : CANCELLED_STEPS;
 
   return (
@@ -68,8 +81,8 @@ export default function TripDetailScreen() {
               tintColor={COLORS.primary}
             />
             <View>
-              <Text style={styles.tripId}>{trip.id}</Text>
-              <Text style={styles.tripDate}>{trip.date}</Text>
+              <Text style={styles.tripId}>{tripId}</Text>
+              <Text style={styles.tripDate}>{tripDate}</Text>
             </View>
           </View>
           <View style={[
@@ -85,7 +98,7 @@ export default function TripDetailScreen() {
               styles.statusText,
               { color: isCompleted ? COLORS.success : COLORS.danger },
             ]}>
-              {trip.status}
+              {statusDisplay}
             </Text>
           </View>
         </View>
@@ -95,7 +108,7 @@ export default function TripDetailScreen() {
           <View style={styles.fareCardInner}>
             <Text style={styles.fareLabelHero}>Total Fare Earned</Text>
             <Text style={styles.fareAmountHero}>
-              {isCompleted ? trip.fare : '₱ 0.00'}
+              {isCompleted ? fareDisplay : '₱ 0.00'}
             </Text>
             {isCompleted && (
               <View style={styles.fareMetaRow}>
@@ -128,18 +141,18 @@ export default function TripDetailScreen() {
               <Ionicons name="person" size={26} color={COLORS.primary} />
             </View>
             <View style={styles.passengerMeta}>
-              <Text style={styles.passengerName}>{trip.passengerName}</Text>
-              {isCompleted && extras.passengerRating > 0 && (
+              <Text style={styles.passengerName}>{passengerName}</Text>
+              {isCompleted && (
                 <View style={styles.ratingRow}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Ionicons
                       key={star}
                       name="star"
                       size={14}
-                      color={star <= Math.round(extras.passengerRating) ? '#F59E0B' : '#E5E7EB'}
+                      color="#F59E0B"
                     />
                   ))}
-                  <Text style={styles.ratingText}>{extras.passengerRating.toFixed(1)}</Text>
+                  <Text style={styles.ratingText}>5.0</Text>
                 </View>
               )}
             </View>
@@ -159,11 +172,11 @@ export default function TripDetailScreen() {
             <View style={styles.routeTextCol}>
               <View style={styles.routeStop}>
                 <Text style={styles.routeStopLabel}>PICKUP</Text>
-                <Text style={styles.routeStopText}>{trip.pickup}</Text>
+                <Text style={styles.routeStopText}>{pickupLocation}</Text>
               </View>
               <View style={[styles.routeStop, { marginTop: 12 }]}>
                 <Text style={styles.routeStopLabel}>DESTINATION</Text>
-                <Text style={styles.routeStopText}>{trip.destination}</Text>
+                <Text style={styles.routeStopText}>{dropoffLocation}</Text>
               </View>
             </View>
           </View>
@@ -208,7 +221,7 @@ export default function TripDetailScreen() {
           <Text style={styles.sectionTitle}>Fare Breakdown</Text>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Base Fare</Text>
-            <Text style={styles.breakdownValue}>{isCompleted ? trip.fare : '₱ 0.00'}</Text>
+            <Text style={styles.breakdownValue}>{isCompleted ? fareDisplay : '₱ 0.00'}</Text>
           </View>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Distance</Text>
@@ -221,7 +234,7 @@ export default function TripDetailScreen() {
           <View style={[styles.breakdownRow, styles.breakdownTotal]}>
             <Text style={styles.breakdownTotalLabel}>Total Earned</Text>
             <Text style={styles.breakdownTotalValue}>
-              {isCompleted ? trip.fare : '₱ 0.00'}
+              {isCompleted ? fareDisplay : '₱ 0.00'}
             </Text>
           </View>
         </View>

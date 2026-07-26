@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import {
   View,
@@ -10,49 +10,79 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
-import { MOCK_RECENT_TRIP } from '../services/api';
 
 export default function RecentTripCard() {
   const navigation = useNavigation<any>();
+  const [recentTrip, setRecentTrip] = useState<any>(null);
+
+  const getHost = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return window.location.hostname;
+    }
+    return '192.168.254.205';
+  };
+
+  useEffect(() => {
+    async function fetchRecentTrip() {
+      try {
+        const host = getHost();
+        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        if (data.bookings && data.bookings.length > 0) {
+          setRecentTrip(data.bookings[0]);
+        }
+      } catch (e) {}
+    }
+    fetchRecentTrip();
+  }, []);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Most Recent Trip</Text>
         <TouchableOpacity onPress={() => navigation.navigate('History')}>
-          <Text style={styles.viewAll}>See History ➔</Text>
+          <Text style={styles.viewAll}>See History</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.topRow}>
-          <Image
-            source={require('../assets/tricycle.png')}
-            style={styles.icon}
-          />
-          <View style={styles.meta}>
-            <Text style={styles.passenger}>{MOCK_RECENT_TRIP.passengerName}</Text>
-            <Text style={styles.date}>{MOCK_RECENT_TRIP.date}</Text>
+      {recentTrip ? (
+        <View style={styles.card}>
+          <View style={styles.topRow}>
+            <Image
+              source={require('../assets/tricycle.png')}
+              style={styles.icon}
+            />
+            <View style={styles.meta}>
+              <Text style={styles.passenger}>{recentTrip.passenger?.user?.name || 'Passenger'}</Text>
+              <Text style={styles.date}>{new Date(recentTrip.updated_at || recentTrip.requested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+            </View>
+            <Text style={styles.fare}>₱{recentTrip.fare_amount || '45.00'}</Text>
           </View>
-          <Text style={styles.fare}>{MOCK_RECENT_TRIP.fare}</Text>
-        </View>
 
-        <View style={styles.divider} />
+          <View style={styles.divider} />
 
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={18} color={COLORS.primary} />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {MOCK_RECENT_TRIP.pickup}
-          </Text>
-        </View>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {recentTrip.pickup_name || 'Pickup Point'}
+            </Text>
+          </View>
 
-        <View style={styles.locationRow}>
-          <Ionicons name="flag-outline" size={18} color={COLORS.secondary} />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {MOCK_RECENT_TRIP.destination}
-          </Text>
+          <View style={styles.locationRow}>
+            <Ionicons name="flag-outline" size={18} color={COLORS.secondary} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {recentTrip.dropoff_name || 'Destination'}
+            </Text>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.emptyCard}>
+          <Ionicons name="time-outline" size={32} color="#94A3B8" />
+          <Text style={styles.emptyText}>No recent completed trips recorded yet.</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -141,9 +171,25 @@ const styles = StyleSheet.create({
   },
 
   locationText: {
-    marginLeft: 8,
+    marginLeft: 10,
     fontSize: 14,
-    color: COLORS.gray,
+    color: '#666666',
     flex: 1,
+  },
+  emptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+  },
+  emptyText: {
+    color: '#64748B',
+    fontSize: 13,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

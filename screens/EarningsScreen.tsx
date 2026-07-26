@@ -1,47 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
 
 const { width } = Dimensions.get('window');
 
-// ── Mock Data ──────────────────────────────────────────────
-const WEEKLY_DATA = [
-  { day: 'Mon', amount: 320, trips: 4 },
-  { day: 'Tue', amount: 510, trips: 7 },
-  { day: 'Wed', amount: 280, trips: 3 },
-  { day: 'Thu', amount: 640, trips: 9 },
-  { day: 'Fri', amount: 780, trips: 11 },
-  { day: 'Sat', amount: 920, trips: 13 },
-  { day: 'Sun', amount: 450, trips: 6 },
-];
-
-const TODAY_INDEX = 5; // Saturday
-
-const PAYOUTS = [
-  { id: '1', date: 'Jul 21, 2026', amount: '₱ 1,840.00', status: 'Paid' },
-  { id: '2', date: 'Jul 14, 2026', amount: '₱ 2,210.00', status: 'Paid' },
-  { id: '3', date: 'Jul 7, 2026',  amount: '₱ 1,650.00', status: 'Paid' },
-];
-
-const MAX_AMOUNT = Math.max(...WEEKLY_DATA.map((d) => d.amount));
-const BAR_MAX_HEIGHT = 80;
-
 export default function EarningsScreen() {
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('weekly');
+  const [loading, setLoading] = useState<boolean>(true);
+  const [earningsSummary, setEarningsSummary] = useState({
+    todayAmount: 0,
+    totalWeeklyAmount: 0,
+    totalTrips: 0,
+    avgFare: 0,
+    recentPayouts: [] as any[],
+  });
 
-  const totalWeekly = WEEKLY_DATA.reduce((sum, d) => sum + d.amount, 0);
-  const totalTrips   = WEEKLY_DATA.reduce((sum, d) => sum + d.trips, 0);
-  const avgFare      = Math.round(totalWeekly / totalTrips);
-  const todayEarnings = WEEKLY_DATA[TODAY_INDEX].amount;
+  const getHost = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return window.location.hostname;
+    }
+    return '192.168.254.205';
+  };
+
+  useEffect(() => {
+    async function fetchDriverEarnings() {
+      try {
+        const host = getHost();
+        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        if (data.bookings) {
+          const completed = data.bookings.filter((b: any) => b.status === 'completed');
+          let todaySum = 0;
+          let weekSum = 0;
+          const todayStr = new Date().toDateString();
+
+          completed.forEach((b: any) => {
+            const amount = parseFloat(b.fare_amount || 0);
+            weekSum += amount;
+            if (new Date(b.created_at || b.requested_at).toDateString() === todayStr) {
+              todaySum += amount;
+            }
+          });
+
+          const tripsCount = completed.length;
+          const avg = tripsCount > 0 ? Math.round(weekSum / tripsCount) : 0;
+
+          setEarningsSummary({
+            todayAmount: todaySum,
+            totalWeeklyAmount: weekSum,
+            totalTrips: tripsCount,
+            avgFare: avg,
+            recentPayouts: completed.slice(0, 5),
+          });
+        }
+      } catch (e) {
+        console.log('[Driver Earnings] Poll notice:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDriverEarnings();
+  }, []);
+
+  const todayEarnings = earningsSummary.todayAmount;
+  const totalWeekly = earningsSummary.totalWeeklyAmount;
+  const totalTrips = earningsSummary.totalTrips;
+  const avgFare = earningsSummary.avgFare;
 
   return (
     <SafeAreaView style={styles.container}>
