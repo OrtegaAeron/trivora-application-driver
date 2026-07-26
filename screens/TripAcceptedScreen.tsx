@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,34 @@ export default function TripAcceptedScreen() {
   const route = useRoute<any>();
 
   const request = route.params?.bookingRequest || MOCK_BOOKING_REQUEST;
+  const [tripStage, setTripStage] = useState<'accepted' | 'arrived' | 'in_transit' | 'completed'>('accepted');
+
+  const getHost = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return window.location.hostname;
+    }
+    return '192.168.254.205';
+  };
+
+  const updateStage = async (nextStage: 'arrived' | 'in_transit' | 'completed') => {
+    try {
+      const host = getHost();
+      const bookingId = request.id || 1;
+      await fetch(`http://${host}:8000/api/v1/driver/bookings/${bookingId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ status: nextStage }),
+      });
+    } catch (e) {
+      console.log('Stage update notice:', e);
+    }
+
+    if (nextStage === 'completed') {
+      navigation.replace('Main');
+    } else {
+      setTripStage(nextStage);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -25,20 +53,26 @@ export default function TripAcceptedScreen() {
         <View style={styles.content}>
           {/* SUCCESS ICON */}
           <Ionicons
-            name="checkmark-circle"
-            size={100}
-            color={COLORS.success}
+            name={tripStage === 'completed' ? 'checkmark-circle' : tripStage === 'in_transit' ? 'navigate' : 'location'}
+            size={90}
+            color={COLORS.primary}
             style={styles.icon}
           />
 
-          <Text style={styles.title}>Booking Accepted!</Text>
+          <Text style={styles.title}>
+            {tripStage === 'accepted' && 'Booking Accepted!'}
+            {tripStage === 'arrived' && 'Arrived at Pickup!'}
+            {tripStage === 'in_transit' && 'Trip In Progress 🚀'}
+          </Text>
           <Text style={styles.subtitle}>
-            You are now assigned to pick up {request.passenger.name}.
+            {tripStage === 'accepted' && `Heading to pick up ${request.passenger.name}.`}
+            {tripStage === 'arrived' && `Waiting for ${request.passenger.name} to board your tricycle.`}
+            {tripStage === 'in_transit' && `Navigating to ${request.destination}.`}
           </Text>
 
           {/* CARD SUMMARY */}
           <View style={styles.card}>
-            <Text style={styles.cardHeader}>Passenger Info</Text>
+            <Text style={styles.cardHeader}>Passenger & Trip Details</Text>
             <View style={styles.passengerRow}>
               <Ionicons name="person-circle" size={48} color={COLORS.primary} />
               <View style={styles.passengerDetails}>
@@ -52,7 +86,7 @@ export default function TripAcceptedScreen() {
             <View style={styles.row}>
               <Ionicons name="location" size={20} color={COLORS.primary} />
               <View style={styles.textMeta}>
-                <Text style={styles.label}>Pickup</Text>
+                <Text style={styles.label}>Pickup Location</Text>
                 <Text style={styles.value}>{request.pickupLocation}</Text>
               </View>
             </View>
@@ -74,14 +108,36 @@ export default function TripAcceptedScreen() {
             </View>
           </View>
 
-          {/* ACTION BUTTONS */}
-          <TouchableOpacity
-            style={styles.trackButton}
-            onPress={() => navigation.navigate('ActiveTrip', { bookingRequest: request })}
-          >
-            <Ionicons name="navigate-circle" size={24} color="#FFFFFF" />
-            <Text style={styles.buttonText}>START TRIP NAVIGATION</Text>
-          </TouchableOpacity>
+          {/* DYNAMIC PROGRESS BUTTONS */}
+          {tripStage === 'accepted' && (
+            <TouchableOpacity
+              style={styles.trackButton}
+              onPress={() => updateStage('arrived')}
+            >
+              <Ionicons name="location-sharp" size={22} color="#FFFFFF" />
+              <Text style={styles.buttonText}>I'M AT THE PICKUP LOCATION 📍</Text>
+            </TouchableOpacity>
+          )}
+
+          {tripStage === 'arrived' && (
+            <TouchableOpacity
+              style={[styles.trackButton, { backgroundColor: '#10B981' }]}
+              onPress={() => updateStage('in_transit')}
+            >
+              <Ionicons name="navigate" size={22} color="#FFFFFF" />
+              <Text style={styles.buttonText}>START TRIP NAVIGATION 🚀</Text>
+            </TouchableOpacity>
+          )}
+
+          {tripStage === 'in_transit' && (
+            <TouchableOpacity
+              style={[styles.trackButton, { backgroundColor: '#059669' }]}
+              onPress={() => updateStage('completed')}
+            >
+              <Ionicons name="checkmark-done-circle" size={22} color="#FFFFFF" />
+              <Text style={styles.buttonText}>COMPLETE RIDE & COLLECT FARE 🏁</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.detailsButton}

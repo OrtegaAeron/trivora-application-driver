@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -11,13 +10,23 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Modal,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import COLORS from '../theme/colors';
 import { useAuth } from '../services/AuthContext';
+
+const TODA_OPTIONS = [
+  'TODA Bucana',
+  'TODA Brgy. 10',
+  'TODA Brgy. 8',
+  'TODA Brgy. 4',
+];
 
 export default function RegisterScreen() {
   const navigation = useNavigation<any>();
@@ -27,8 +36,11 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
   const [plateNumber, setPlateNumber] = useState('');
-  const [toda, setToda] = useState('');
+  const [toda, setToda] = useState('TODA Bucana');
+  const [showTodaPicker, setShowTodaPicker] = useState(false);
   const [franchiseId, setFranchiseId] = useState('');
+  const [trackingMode, setTrackingMode] = useState<'iot_enabled' | 'mobile_only'>('iot_enabled');
+  const [iotDeviceId, setIotDeviceId] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -36,7 +48,7 @@ export default function RegisterScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !mobile.trim() || !plateNumber.trim() || !toda.trim() || !franchiseId.trim() || !password || !confirmPassword) {
       Alert.alert('Incomplete Form', 'Please fill in all fields before registering.');
       return;
@@ -51,36 +63,91 @@ export default function RegisterScreen() {
     }
 
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
 
-      // Save the registered driver profile to context
+    const apiUrls = [
+      'http://192.168.254.205:8000/api/v1/driver/register',
+      'http://10.0.2.2:8000/api/v1/driver/register',
+      'http://localhost:8000/api/v1/driver/register',
+      'http://127.0.0.1:8000/api/v1/driver/register',
+    ];
+
+    let successResponse = null;
+    let lastErrorMsg = '';
+
+    for (const url of apiUrls) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            name: fullName.trim(),
+            email: email.trim(),
+            mobile_number: mobile.trim(),
+            plate_number: plateNumber.trim().toUpperCase(),
+            toda: toda.trim(),
+            license_number: franchiseId.trim().toUpperCase(),
+            tracking_capability: trackingMode,
+            iot_device_id: trackingMode === 'iot_enabled' ? iotDeviceId.trim() : null,
+            password: password,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          successResponse = data;
+          break;
+        } else {
+          lastErrorMsg = data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Validation failed.');
+        }
+      } catch (err: any) {
+        lastErrorMsg = err.message || 'Connection error to backend server.';
+      }
+    }
+
+    setLoading(false);
+
+    if (successResponse) {
       setDriverProfile({
-        id: 'DRV-' + Math.floor(Math.random() * 900 + 100),
+        id: successResponse.driver ? `DRV-${successResponse.driver.id}` : 'DRV-102',
         name: fullName.trim(),
         email: email.trim(),
         mobile: mobile.trim(),
         plateNumber: plateNumber.trim().toUpperCase(),
         toda: toda.trim(),
         franchiseId: franchiseId.trim().toUpperCase(),
-        rating: 0,
+        rating: 5.0,
         totalTrips: 0,
         isOnline: false,
       });
 
       setIsRegistered(true);
 
-      Alert.alert(
-        'Registration Successful! 🎉',
-        'Your account has been created. Please log in to continue.',
-        [
-          {
-            text: 'Go to Login',
-            onPress: () => navigation.replace('Login'),
-          },
-        ]
-      );
-    }, 1800);
+      if (Platform.OS === 'web') {
+        alert('Registration Successful 🎉\nYour driver account has been saved in the database. Please log in.');
+        navigation.replace('Login');
+      } else {
+        Alert.alert(
+          'Registration Successful 🎉',
+          'Your driver account has been saved in the database. Please log in.',
+          [
+            {
+              text: 'Go to Login',
+              onPress: () => navigation.replace('Login'),
+            },
+          ]
+        );
+      }
+    } else {
+      if (Platform.OS === 'web') {
+        alert(`Registration Error: ${lastErrorMsg || 'Could not connect to database server.'}`);
+      } else {
+        Alert.alert('Registration Error', lastErrorMsg || 'Could not connect to database server.');
+      }
+    }
   };
 
   const renderInput = (
@@ -174,16 +241,25 @@ export default function RegisterScreen() {
             <Text style={styles.sectionTitle}>Vehicle & Franchise Details</Text>
           </View>
 
-          {renderInput('Tricycle Plate / Body Number', 'card-outline', plateNumber, setPlateNumber, {
-            placeholder: 'e.g. TRV-102',
+          {renderInput('Tricycle Plate Number', 'card-outline', plateNumber, setPlateNumber, {
+            placeholder: 'e.g. AAA-1234',
             capitalize: 'characters',
           })}
-          {renderInput('TODA / Barangay Assignment', 'business-outline', toda, setToda, {
-            placeholder: 'e.g. TODA Zone 1 - Poblacion',
-            capitalize: 'words',
-          })}
 
-          <Text style={styles.label}>Franchise ID / Number</Text>
+          {/* TODA DROPDOWN SELECTOR */}
+          <Text style={styles.label}>TODA Assignment</Text>
+          <TouchableOpacity
+            style={[styles.inputContainer, { flexDirection: 'row', alignItems: 'center' }]}
+            onPress={() => setShowTodaPicker(true)}
+          >
+            <Ionicons name="business-outline" size={20} color={COLORS.primary} />
+            <Text style={[styles.input, { color: toda ? COLORS.black : '#999', fontSize: 15 }]}>
+              {toda || 'Select TODA Assignment'}
+            </Text>
+            <Ionicons name="chevron-down-outline" size={20} color={COLORS.gray} />
+          </TouchableOpacity>
+
+          <Text style={styles.label}>License / Franchise Permit No.</Text>
           <View style={[styles.inputContainer, styles.franchiseHighlight]}>
             <Ionicons name="id-card-outline" size={20} color={COLORS.primary} />
             <TextInput
@@ -192,12 +268,59 @@ export default function RegisterScreen() {
               onChangeText={setFranchiseId}
               autoCapitalize="characters"
               placeholderTextColor="#999"
-              placeholder="e.g. FRN-2024-0001"
+              placeholder="e.g. PERMIT-2026-0142"
             />
           </View>
-          <Text style={styles.hint}>
-            📄 Your franchise/accreditation number issued by the LGU or TODA.
-          </Text>
+
+          {/* TELEMATICS TRACKING CAPABILITY SELECTOR */}
+          <Text style={[styles.label, { marginTop: 14 }]}>GPS Tracking Method</Text>
+          <View style={{ gap: 8, marginTop: 4 }}>
+            <TouchableOpacity
+              style={[
+                styles.inputContainer,
+                { height: 48, paddingHorizontal: 12 },
+                trackingMode === 'iot_enabled' && { borderColor: COLORS.primary, borderWidth: 1.5, backgroundColor: '#EEF2FF' }
+              ]}
+              onPress={() => setTrackingMode('iot_enabled')}
+            >
+              <Ionicons
+                name={trackingMode === 'iot_enabled' ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={trackingMode === 'iot_enabled' ? COLORS.primary : COLORS.gray}
+              />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.black }}>Smart IoT GPS Tracker</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.inputContainer,
+                { height: 48, paddingHorizontal: 12 },
+                trackingMode === 'mobile_only' && { borderColor: COLORS.primary, borderWidth: 1.5, backgroundColor: '#EEF2FF' }
+              ]}
+              onPress={() => setTrackingMode('mobile_only')}
+            >
+              <Ionicons
+                name={trackingMode === 'mobile_only' ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={trackingMode === 'mobile_only' ? COLORS.primary : COLORS.gray}
+              />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.black }}>Mobile Phone GPS</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* CONDITIONAL IOT DEVICE ID INPUT */}
+          {trackingMode === 'iot_enabled' && (
+            <View style={{ marginTop: 8 }}>
+              {renderInput('IoT Device ID', 'hardware-chip-outline', iotDeviceId, setIotDeviceId, {
+                placeholder: 'e.g. TRV-GPS-991',
+                capitalize: 'characters',
+              })}
+            </View>
+          )}
         </View>
 
         {/* ACCOUNT SECURITY */}
@@ -248,6 +371,60 @@ export default function RegisterScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* TODA SELECTION MODAL */}
+      <Modal
+        visible={showTodaPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowTodaPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowTodaPicker(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select TODA Assignment</Text>
+              <TouchableOpacity onPress={() => setShowTodaPicker(false)}>
+                <Ionicons name="close" size={24} color={COLORS.gray} />
+              </TouchableOpacity>
+            </View>
+
+            {TODA_OPTIONS.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  styles.todaOption,
+                  toda === item && styles.todaOptionSelected,
+                ]}
+                onPress={() => {
+                  setToda(item);
+                  setShowTodaPicker(false);
+                }}
+              >
+                <Ionicons
+                  name="business-outline"
+                  size={20}
+                  color={toda === item ? COLORS.primary : COLORS.gray}
+                />
+                <Text
+                  style={[
+                    styles.todaOptionText,
+                    toda === item && styles.todaOptionTextSelected,
+                  ]}
+                >
+                  {item}
+                </Text>
+                {toda === item && (
+                  <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -396,6 +573,60 @@ const styles = StyleSheet.create({
   },
 
   loginLinkBold: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.black,
+  },
+  todaOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  todaOptionSelected: {
+    backgroundColor: '#EEF2FF',
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+  },
+  todaOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.black,
+    marginLeft: 12,
+    flex: 1,
+  },
+  todaOptionTextSelected: {
     color: COLORS.primary,
     fontWeight: 'bold',
   },

@@ -83,9 +83,9 @@ export default function MapPreview() {
     keyboard: false
   }).setView([${driverLat}, ${driverLng}], 15);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20
+  L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google Maps'
   }).addTo(map);
 
   L.circle([${driverLat}, ${driverLng}], {
