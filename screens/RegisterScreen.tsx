@@ -65,6 +65,7 @@ export default function RegisterScreen() {
     setLoading(true);
 
     const apiUrls = [
+      'http://192.168.254.204:8000/api/v1/driver/register',
       'http://192.168.254.205:8000/api/v1/driver/register',
       'http://10.0.2.2:8000/api/v1/driver/register',
       'http://localhost:8000/api/v1/driver/register',

@@ -168,8 +168,8 @@ export default function MapPreview() {
         {/* Overlay Badges */}
         <View style={styles.overlayTopLeft}>
           <View style={styles.livePulse}>
-            <View style={styles.dot} />
-            <Text style={styles.pulseText}>LIVE COVERAGE</Text>
+            <Ionicons name="hardware-chip" size={12} color={COLORS.primary} style={{ marginRight: 4 }} />
+            <Text style={styles.pulseText}>IoT GPS ACTIVE • TELEMATICS ONLINE</Text>
           </View>
         </View>
       </TouchableOpacity>

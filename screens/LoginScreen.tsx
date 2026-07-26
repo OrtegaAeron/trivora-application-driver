@@ -25,19 +25,37 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Incomplete Form', 'Please enter your email and password.');
+    let hasError = false;
+    setEmailError('');
+    setPasswordError('');
+
+    if (!email.trim()) {
+      setEmailError('Email or Driver License Number is required.');
+      hasError = true;
+    }
+
+    if (!password.trim()) {
+      setPasswordError('Password is required.');
+      hasError = true;
+    }
+
+    if (hasError) {
+      Alert.alert('Validation Error', 'Please complete all required fields correctly.');
       return;
     }
 
     setLoading(true);
 
     const apiUrls = [
+      'http://192.168.254.204:8000/api/v1/driver/login',
       'http://192.168.254.205:8000/api/v1/driver/login',
       'http://10.0.2.2:8000/api/v1/driver/login',
       'http://localhost:8000/api/v1/driver/login',
@@ -80,7 +98,10 @@ export default function LoginScreen() {
           setIsRegistered(true);
           break;
         } else {
-          lastErrMsg = data.message || 'Invalid credentials.';
+          lastErrMsg = data.message || 'Invalid username/email or password.';
+          if (response.status === 401 || response.status === 403 || response.status === 422) {
+            break;
+          }
         }
       } catch (err: any) {
         lastErrMsg = err.message || 'Connection error to server.';
@@ -92,7 +113,9 @@ export default function LoginScreen() {
     if (loggedIn) {
       navigation.replace('Main');
     } else {
-      Alert.alert('Login Error', lastErrMsg);
+      setEmailError('Invalid email or password.');
+      setPasswordError('Invalid email or password.');
+      Alert.alert('Authentication Failed', lastErrMsg || 'Invalid credentials. Please verify your email and password.');
     }
   };
 
@@ -129,11 +152,11 @@ export default function LoginScreen() {
             Email Address / Driver ID
           </Text>
 
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, !!emailError && styles.inputError]}>
             <Ionicons
               name="mail-outline"
               size={22}
-              color={COLORS.gray}
+              color={emailError ? COLORS.danger : COLORS.gray}
             />
 
             <TextInput
@@ -141,21 +164,25 @@ export default function LoginScreen() {
               placeholderTextColor="#999"
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) setEmailError('');
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
+          {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
 
           <Text style={styles.label}>
             Password
           </Text>
 
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, !!passwordError && styles.inputError]}>
             <Ionicons
               name="lock-closed-outline"
               size={22}
-              color={COLORS.gray}
+              color={passwordError ? COLORS.danger : COLORS.gray}
             />
 
             <TextInput
@@ -164,7 +191,10 @@ export default function LoginScreen() {
               style={styles.input}
               secureTextEntry={!showPassword}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError('');
+              }}
             />
 
             <TouchableOpacity
@@ -181,6 +211,7 @@ export default function LoginScreen() {
               />
             </TouchableOpacity>
           </View>
+          {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
           {/* OPTIONS */}
           <View style={styles.options}>
@@ -324,6 +355,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 10,
     color: COLORS.black,
+  },
+
+  inputError: {
+    borderColor: COLORS.danger,
+    borderWidth: 1.5,
+  },
+
+  errorText: {
+    color: COLORS.danger,
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+    fontWeight: '600',
   },
 
   options: {
