@@ -1,7 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -11,7 +10,9 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
@@ -19,7 +20,7 @@ import { useAuth } from '../services/AuthContext';
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
-  const { driverProfile, isRegistered } = useAuth();
+  const { setDriverProfile, setIsRegistered } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,13 +29,71 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Incomplete Form', 'Please enter your email and password.');
+      return;
+    }
+
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    const apiUrls = [
+      'http://192.168.254.205:8000/api/v1/driver/login',
+      'http://10.0.2.2:8000/api/v1/driver/login',
+      'http://localhost:8000/api/v1/driver/login',
+      'http://127.0.0.1:8000/api/v1/driver/login',
+    ];
+
+    let loggedIn = false;
+    let lastErrMsg = '';
+
+    for (const url of apiUrls) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            login: email.trim(),
+            password: password,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          loggedIn = true;
+          setDriverProfile({
+            id: data.driver ? `DRV-${data.driver.id}` : 'DRV-888',
+            name: (data.user?.name || data.operator?.full_name || 'Pedro Ramos').replace(/\s*\(.*?\)\s*/g, ''),
+            email: data.user?.email || email.trim(),
+            mobile: data.driver?.mobile_number || data.operator?.contact_number || '09188887777',
+            plateNumber: data.tricycle?.plate_number || 'TRV-BRGY8',
+            toda: data.operator?.toda_zone || data.tricycle?.toda_zone || 'TODA Brgy. 8',
+            franchiseId: data.driver?.license_number || data.operator?.license_number || 'N01-18-000888',
+            rating: data.driver?.rating || 5.0,
+            totalTrips: data.driver?.total_trips || 0,
+            isOnline: true,
+          });
+          setIsRegistered(true);
+          break;
+        } else {
+          lastErrMsg = data.message || 'Invalid credentials.';
+        }
+      } catch (err: any) {
+        lastErrMsg = err.message || 'Connection error to server.';
+      }
+    }
+
+    setLoading(false);
+
+    if (loggedIn) {
       navigation.replace('Main');
-    }, 1500);
+    } else {
+      Alert.alert('Login Error', lastErrMsg);
+    }
   };
 
   return (

@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +21,90 @@ export default function BookingRequestScreen() {
 
   const request = route.params?.bookingRequest || MOCK_BOOKING_REQUEST;
 
-  const handleAccept = () => {
+  const pickupLat = request.pickupCoords?.latitude || 14.0725;
+  const pickupLng = request.pickupCoords?.longitude || 120.6315;
+  const dropoffLat = request.dropoffCoords?.latitude || 14.0685;
+  const dropoffLng = request.dropoffCoords?.longitude || 120.6285;
+
+  const mapHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #f8fafc; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  var map = L.map('map', { zoomControl: false }).setView([${pickupLat}, ${pickupLng}], 14);
+  L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google Maps'
+  }).addTo(map);
+
+  var pickupMarker = L.marker([${pickupLat}, ${pickupLng}]).addTo(map).bindPopup('<b>Pickup Point</b>');
+  var dropoffMarker = L.marker([${dropoffLat}, ${dropoffLng}]).addTo(map).bindPopup('<b>Pinned Destination</b>');
+
+  var osrmUrl = 'https://router.project-osrm.org/route/v1/driving/' + ${pickupLng} + ',' + ${pickupLat} + ';' + ${dropoffLng} + ',' + ${dropoffLat} + '?overview=full&geometries=geojson';
+
+  fetch(osrmUrl)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.routes && data.routes.length > 0) {
+        var coords = data.routes[0].geometry.coordinates.map(function(c) {
+          return [c[1], c[0]];
+        });
+        var routePolyline = L.polyline(coords, {
+          color: '#2563EB',
+          weight: 6,
+          opacity: 0.9
+        }).addTo(map);
+        map.fitBounds(routePolyline.getBounds(), { padding: [30, 30] });
+      } else {
+        var fallbackLine = L.polyline([[${pickupLat}, ${pickupLng}], [${dropoffLat}, ${dropoffLng}]], {
+          color: '#2563EB',
+          weight: 5,
+          dashArray: '6, 6'
+        }).addTo(map);
+        map.fitBounds(fallbackLine.getBounds(), { padding: [30, 30] });
+      }
+    })
+    .catch(function(err) {
+      var fallbackLine = L.polyline([[${pickupLat}, ${pickupLng}], [${dropoffLat}, ${dropoffLng}]], {
+        color: '#2563EB',
+        weight: 5,
+        dashArray: '6, 6'
+      }).addTo(map);
+      map.fitBounds(fallbackLine.getBounds(), { padding: [30, 30] });
+    });
+</script>
+</body>
+</html>
+`;
+
+  const getHost = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return window.location.hostname;
+    }
+    return '192.168.254.205';
+  };
+
+  const handleAccept = async () => {
+    try {
+      const host = getHost();
+      const bookingId = request.id || 1;
+      await fetch(`http://${host}:8000/api/v1/driver/bookings/${bookingId}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      });
+    } catch (e) {
+      console.log('Driver Accept API Notice:', e);
+    }
     navigation.navigate('TripAccepted', { bookingRequest: request });
   };
 
@@ -118,6 +202,20 @@ export default function BookingRequestScreen() {
               <Text style={styles.notesText}>Note: {request.notes}</Text>
             </View>
           )}
+        </View>
+
+        {/* ROUTE MAP PREVIEW */}
+        <View style={styles.mapCard}>
+          <Text style={styles.cardTitle}>Route Overview (Pickup ➔ Pinned Location)</Text>
+          <View style={styles.mapFrame}>
+            <WebView
+              style={styles.webViewMap}
+              originWhitelist={['*']}
+              source={{ html: mapHtml }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+            />
+          </View>
         </View>
 
         {/* ACTION BUTTONS */}
@@ -397,8 +495,29 @@ const styles = StyleSheet.create({
 
   cancelButtonText: {
     color: COLORS.danger,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+
+  mapCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  mapFrame: {
+    height: 220,
+    borderRadius: 14,
+    overflow: 'hidden' as any,
+    marginTop: 10,
+  },
+  webViewMap: {
+    flex: 1,
   },
 });

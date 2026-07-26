@@ -33,18 +33,23 @@ export default function MapScreen() {
   async function getCurrentLocation() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to display live driver position.');
-        setLoading(false);
-        return;
+      if (status === 'granted') {
+        const current = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (current && current.coords) {
+          setLocation({
+            latitude: current.coords.latitude,
+            longitude: current.coords.longitude,
+          });
+        }
       }
-      const current = await Location.getCurrentPositionAsync({});
-      setLocation({
-        latitude: current.coords.latitude,
-        longitude: current.coords.longitude,
-      });
     } catch (e) {
-      console.log('Location error:', e);
+      // Fallback default position (Nasugbu Center / Brgy 8)
+      setLocation({
+        latitude: 14.0685,
+        longitude: 120.6285,
+      });
     } finally {
       setLoading(false);
     }
@@ -120,10 +125,9 @@ export default function MapScreen() {
     attributionControl: true
   }).setView([${driverLat}, ${driverLng}], 15);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 20
+  L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google Maps'
   }).addTo(map);
 
   // ── Zoom control bottom-right
