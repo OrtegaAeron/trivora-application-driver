@@ -15,15 +15,23 @@ import { Ionicons } from '@expo/vector-icons';
 
 import COLORS from '../theme/colors';
 import { MOCK_DRIVER } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 
 export default function ProfileScreen() {
   const navigation = useNavigation<any>();
+  const { driverProfile } = useAuth();
 
-  const [name, setName] = useState(MOCK_DRIVER.name);
-  const [email] = useState(MOCK_DRIVER.email);
-  const [mobile, setMobile] = useState(MOCK_DRIVER.mobile);
-  const [plateNumber, setPlateNumber] = useState(MOCK_DRIVER.plateNumber);
-  const [toda, setToda] = useState(MOCK_DRIVER.toda);
+  const [name, setName] = useState(driverProfile.name);
+  const [email] = useState(driverProfile.email);
+  const [mobile, setMobile] = useState(driverProfile.mobile);
+  const [plateNumber, setPlateNumber] = useState(driverProfile.plateNumber);
+  const [toda, setToda] = useState(driverProfile.toda);
+  const [franchiseId] = useState(driverProfile.franchiseId ?? MOCK_DRIVER.franchiseId ?? '');
+
+  // Use codingInfo from real driver or fall back to MOCK
+  const codingInfo = driverProfile.codingInfo ?? MOCK_DRIVER.codingInfo;
+  const rating = driverProfile.rating || MOCK_DRIVER.rating;
+  const totalTrips = driverProfile.totalTrips || MOCK_DRIVER.totalTrips;
 
   const handleSaveProfile = () => {
     Alert.alert('Profile Saved', 'Your driver profile details have been updated successfully.');
@@ -65,66 +73,66 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.driverName}>{name}</Text>
-          <Text style={styles.driverMeta}>⭐ {MOCK_DRIVER.rating} • {MOCK_DRIVER.totalTrips} Total Trips</Text>
+          <Text style={styles.driverMeta}>⭐ {rating} • {totalTrips} Total Trips</Text>
         </View>
 
         {/* VEHICLE CODING SCHEME STATUS CARD */}
-        {MOCK_DRIVER.codingInfo && (
-          <View style={[
-            styles.codingCard,
-            MOCK_DRIVER.codingInfo.isCodingToday ? styles.codingCardDanger : styles.codingCardSuccess
-          ]}>
-            <View style={styles.codingHeaderRow}>
-              <View style={styles.codingBadgeRow}>
-                <Ionicons
-                  name={MOCK_DRIVER.codingInfo.isCodingToday ? 'alert-circle' : 'checkmark-circle'}
-                  size={24}
-                  color={MOCK_DRIVER.codingInfo.isCodingToday ? COLORS.danger : COLORS.success}
-                />
-                <Text style={styles.codingTitle}>Vehicle Coding Status</Text>
-              </View>
-              <View style={[
-                styles.statusPill,
-                { backgroundColor: MOCK_DRIVER.codingInfo.isCodingToday ? '#FEF2F2' : '#DCFCE7' }
-              ]}>
-                <Text style={[
-                  styles.statusPillText,
-                  { color: MOCK_DRIVER.codingInfo.isCodingToday ? COLORS.danger : COLORS.success }
+        {codingInfo && (
+            <View style={[
+              styles.codingCard,
+              codingInfo.isCodingToday ? styles.codingCardDanger : styles.codingCardSuccess
+            ]}>
+              <View style={styles.codingHeaderRow}>
+                <View style={styles.codingBadgeRow}>
+                  <Ionicons
+                    name={codingInfo.isCodingToday ? 'alert-circle' : 'checkmark-circle'}
+                    size={24}
+                    color={codingInfo.isCodingToday ? COLORS.danger : COLORS.success}
+                  />
+                  <Text style={styles.codingTitle}>Vehicle Coding Status</Text>
+                </View>
+                <View style={[
+                  styles.statusPill,
+                  { backgroundColor: codingInfo.isCodingToday ? '#FEF2F2' : '#DCFCE7' }
                 ]}>
-                  {MOCK_DRIVER.codingInfo.isCodingToday ? 'RESTRICTED TODAY' : 'ALLOWED TODAY'}
-                </Text>
+                  <Text style={[
+                    styles.statusPillText,
+                    { color: codingInfo.isCodingToday ? COLORS.danger : COLORS.success }
+                  ]}>
+                    {codingInfo.isCodingToday ? 'RESTRICTED TODAY' : 'ALLOWED TODAY'}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.codingAlertText}>
+                {codingInfo.isCodingToday
+                  ? `⛔ Today is your assigned coding day (${codingInfo.codingDay}). You are NOT allowed to operate your vehicle.`
+                  : `✅ Today is not your coding day. You are cleared to operate.`}
+              </Text>
+
+              <View style={styles.codingDetailsGrid}>
+                <View style={styles.codingDetailBox}>
+                  <Text style={styles.codingDetailLabel}>Plate Body No.</Text>
+                  <Text style={styles.codingDetailVal}>{plateNumber}</Text>
+                </View>
+
+                <View style={styles.codingDetailBox}>
+                  <Text style={styles.codingDetailLabel}>Assigned Coding Day</Text>
+                  <Text style={styles.codingDetailVal}>{codingInfo.codingDay}</Text>
+                </View>
+
+                <View style={styles.codingDetailBox}>
+                  <Text style={styles.codingDetailLabel}>Restricted Digits</Text>
+                  <Text style={styles.codingDetailVal}>{codingInfo.restrictedDigits}</Text>
+                </View>
+
+                <View style={styles.codingDetailBox}>
+                  <Text style={styles.codingDetailLabel}>Restricted Hours</Text>
+                  <Text style={styles.codingDetailVal}>{codingInfo.scheduleHours}</Text>
+                </View>
               </View>
             </View>
-
-            <Text style={styles.codingAlertText}>
-              {MOCK_DRIVER.codingInfo.isCodingToday
-                ? `⛔ Today is your assigned coding day (${MOCK_DRIVER.codingInfo.codingDay}). You are NOT allowed to operate your vehicle.`
-                : `✅ Today is not your coding day. You are cleared to operate.`}
-            </Text>
-
-            <View style={styles.codingDetailsGrid}>
-              <View style={styles.codingDetailBox}>
-                <Text style={styles.codingDetailLabel}>Plate Body No.</Text>
-                <Text style={styles.codingDetailVal}>{MOCK_DRIVER.plateNumber}</Text>
-              </View>
-
-              <View style={styles.codingDetailBox}>
-                <Text style={styles.codingDetailLabel}>Assigned Coding Day</Text>
-                <Text style={styles.codingDetailVal}>{MOCK_DRIVER.codingInfo.codingDay}</Text>
-              </View>
-
-              <View style={styles.codingDetailBox}>
-                <Text style={styles.codingDetailLabel}>Restricted Digits</Text>
-                <Text style={styles.codingDetailVal}>{MOCK_DRIVER.codingInfo.restrictedDigits}</Text>
-              </View>
-
-              <View style={styles.codingDetailBox}>
-                <Text style={styles.codingDetailLabel}>Restricted Hours</Text>
-                <Text style={styles.codingDetailVal}>{MOCK_DRIVER.codingInfo.scheduleHours}</Text>
-              </View>
-            </View>
-          </View>
-        )}
+          )}
 
         {/* EDITABLE FIELDS CARD */}
         <View style={styles.card}>
@@ -185,6 +193,18 @@ export default function ProfileScreen() {
               value={toda}
               onChangeText={setToda}
             />
+          </View>
+
+          {/* FRANCHISE ID (READ-ONLY) */}
+          <Text style={styles.label}>Franchise ID / Number</Text>
+          <View style={[styles.inputContainer, styles.readOnlyInput]}>
+            <Ionicons name="id-card-outline" size={20} color={COLORS.primary} />
+            <TextInput
+              style={[styles.input, { color: COLORS.primary, fontWeight: 'bold' }]}
+              value={franchiseId || 'Not provided'}
+              editable={false}
+            />
+            <Ionicons name="lock-closed" size={16} color={COLORS.gray} />
           </View>
 
           {/* SAVE BUTTON */}

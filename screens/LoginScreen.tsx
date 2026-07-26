@@ -15,9 +15,11 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
+import { useAuth } from '../services/AuthContext';
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
+  const { driverProfile, isRegistered } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -165,6 +167,18 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* REGISTER LINK */}
+        <TouchableOpacity
+          style={styles.registerLinkRow}
+          onPress={() => navigation.navigate('Register')}
+        >
+          <Text style={styles.registerLinkText}>
+            Don't have an account?{' '}
+            <Text style={styles.registerLinkBold}>Register Here</Text>
+          </Text>
+        </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -292,5 +306,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+
+  registerLinkRow: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+
+  registerLinkText: {
+    fontSize: 15,
+    color: COLORS.gray,
+  },
+
+  registerLinkBold: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
   },
 });

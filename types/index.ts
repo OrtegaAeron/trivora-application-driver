@@ -13,6 +13,7 @@ export interface DriverProfile {
   mobile: string;
   plateNumber: string;
   toda: string;
+  franchiseId?: string;
   rating: number;
   totalTrips: number;
   isOnline: boolean;
