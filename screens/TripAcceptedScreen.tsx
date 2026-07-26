@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +27,55 @@ export default function TripAcceptedScreen() {
     }
     return '192.168.254.205';
   };
+
+  const sendDriverLocation = async (lat: number, lng: number) => {
+    try {
+      const host = getHost();
+      await fetch(`http://${host}:8000/api/v1/driver/location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ latitude: lat, longitude: lng }),
+      });
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    let watchSub: any = null;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          // Get immediate hardware GPS location fix
+          const current = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Highest,
+          });
+          if (current && current.coords) {
+            sendDriverLocation(current.coords.latitude, current.coords.longitude);
+          }
+
+          // Continuously track real hardware GPS position
+          watchSub = await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.Highest,
+              timeInterval: 3000,
+              distanceInterval: 5,
+            },
+            (loc) => {
+              if (loc && loc.coords) {
+                sendDriverLocation(loc.coords.latitude, loc.coords.longitude);
+              }
+            }
+          );
+        }
+      } catch (e) {}
+    })();
+
+    return () => {
+      if (watchSub && watchSub.remove) {
+        watchSub.remove();
+      }
+    };
+  }, []);
 
   const updateStage = async (nextStage: 'arrived' | 'in_transit' | 'completed') => {
     try {
@@ -60,9 +110,9 @@ export default function TripAcceptedScreen() {
           />
 
           <Text style={styles.title}>
-            {tripStage === 'accepted' && 'Booking Accepted!'}
-            {tripStage === 'arrived' && 'Arrived at Pickup!'}
-            {tripStage === 'in_transit' && 'Trip In Progress 🚀'}
+            {tripStage === 'accepted' && 'Booking Accepted'}
+            {tripStage === 'arrived' && 'Arrived at Pickup'}
+            {tripStage === 'in_transit' && 'Trip In Progress'}
           </Text>
           <Text style={styles.subtitle}>
             {tripStage === 'accepted' && `Heading to pick up ${request.passenger.name}.`}
@@ -114,8 +164,8 @@ export default function TripAcceptedScreen() {
               style={styles.trackButton}
               onPress={() => updateStage('arrived')}
             >
-              <Ionicons name="location-sharp" size={22} color="#FFFFFF" />
-              <Text style={styles.buttonText}>I'M AT THE PICKUP LOCATION 📍</Text>
+              <Ionicons name="location-sharp" size={22} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.buttonText}>I AM AT PICKUP LOCATION</Text>
             </TouchableOpacity>
           )}
 
@@ -124,18 +174,18 @@ export default function TripAcceptedScreen() {
               style={[styles.trackButton, { backgroundColor: '#10B981' }]}
               onPress={() => updateStage('in_transit')}
             >
-              <Ionicons name="navigate" size={22} color="#FFFFFF" />
-              <Text style={styles.buttonText}>START TRIP NAVIGATION 🚀</Text>
+              <Ionicons name="navigate" size={22} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.buttonText}>START TRIP NAVIGATION</Text>
             </TouchableOpacity>
           )}
 
           {tripStage === 'in_transit' && (
             <TouchableOpacity
-              style={[styles.trackButton, { backgroundColor: '#059669' }]}
+              style={[styles.trackButton, { backgroundColor: '#F59E0B' }]}
               onPress={() => updateStage('completed')}
             >
-              <Ionicons name="checkmark-done-circle" size={22} color="#FFFFFF" />
-              <Text style={styles.buttonText}>COMPLETE RIDE & COLLECT FARE 🏁</Text>
+              <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.buttonText}>COMPLETE RIDE & COLLECT FARE</Text>
             </TouchableOpacity>
           )}
 
@@ -269,7 +319,9 @@ const styles = StyleSheet.create({
 
   trackButton: {
     width: '100%',
-    height: 58,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: COLORS.primary,
     borderRadius: 15,
     justifyContent: 'center',
@@ -281,10 +333,12 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginLeft: 10,
+    marginLeft: 6,
     letterSpacing: 0.5,
+    textAlign: 'center',
+    flexShrink: 1,
   },
 
   detailsButton: {

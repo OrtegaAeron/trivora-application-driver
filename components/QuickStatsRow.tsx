@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,53 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
-import { MOCK_QUICK_STATS } from '../services/api';
 
 export default function QuickStatsRow() {
+  const [stats, setStats] = useState({
+    todayEarnings: '₱0.00',
+    completedTrips: 0,
+    driverRating: 5.0,
+    acceptanceRate: '100%',
+  });
+
+  const getHost = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return window.location.hostname;
+    }
+    return '192.168.254.205';
+  };
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const host = getHost();
+        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        if (data.bookings) {
+          const completed = data.bookings.filter((b: any) => b.status === 'completed');
+          let todaySum = 0;
+          const todayStr = new Date().toDateString();
+
+          completed.forEach((b: any) => {
+            if (new Date(b.created_at || b.requested_at).toDateString() === todayStr) {
+              todaySum += parseFloat(b.fare_amount || 0);
+            }
+          });
+
+          setStats({
+            todayEarnings: `₱${todaySum.toFixed(2)}`,
+            completedTrips: completed.length,
+            driverRating: 4.9,
+            acceptanceRate: '100%',
+          });
+        }
+      } catch (e) {}
+    }
+    fetchStats();
+  }, []);
+
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Today's Summary</Text>
@@ -19,7 +63,7 @@ export default function QuickStatsRow() {
           <View style={[styles.iconBg, { backgroundColor: '#DCFCE7' }]}>
             <Ionicons name="wallet-outline" size={24} color={COLORS.success} />
           </View>
-          <Text style={styles.statValue}>{MOCK_QUICK_STATS.todayEarnings}</Text>
+          <Text style={styles.statValue}>{stats.todayEarnings}</Text>
           <Text style={styles.statLabel}>Earnings Today</Text>
         </View>
 
@@ -27,7 +71,7 @@ export default function QuickStatsRow() {
           <View style={[styles.iconBg, { backgroundColor: '#EEF2FF' }]}>
             <Ionicons name="location-outline" size={24} color={COLORS.primary} />
           </View>
-          <Text style={styles.statValue}>{MOCK_QUICK_STATS.completedTrips}</Text>
+          <Text style={styles.statValue}>{stats.completedTrips}</Text>
           <Text style={styles.statLabel}>Trips Done</Text>
         </View>
 
@@ -35,7 +79,7 @@ export default function QuickStatsRow() {
           <View style={[styles.iconBg, { backgroundColor: '#FEF3C7' }]}>
             <Ionicons name="star" size={22} color={COLORS.warning} />
           </View>
-          <Text style={styles.statValue}>⭐ {MOCK_QUICK_STATS.driverRating}</Text>
+          <Text style={styles.statValue}>{stats.driverRating}</Text>
           <Text style={styles.statLabel}>Rating</Text>
         </View>
 
@@ -43,7 +87,7 @@ export default function QuickStatsRow() {
           <View style={[styles.iconBg, { backgroundColor: '#E0E7FF' }]}>
             <Ionicons name="checkmark-done" size={24} color={COLORS.secondary} />
           </View>
-          <Text style={styles.statValue}>{MOCK_QUICK_STATS.acceptanceRate}</Text>
+          <Text style={styles.statValue}>{stats.acceptanceRate}</Text>
           <Text style={styles.statLabel}>Acceptance</Text>
         </View>
       </View>
