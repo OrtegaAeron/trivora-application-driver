@@ -25,19 +25,38 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [authError, setAuthError] = useState('');
+
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Incomplete Form', 'Please enter your email and password.');
+    let hasError = false;
+    setEmailError('');
+    setPasswordError('');
+    setAuthError('');
+
+    if (!email.trim()) {
+      setEmailError('Email or Driver License Number is required.');
+      hasError = true;
+    }
+
+    if (!password.trim()) {
+      setPasswordError('Password is required.');
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
     setLoading(true);
 
     const apiUrls = [
+      'http://192.168.254.204:8000/api/v1/driver/login',
       'http://192.168.254.205:8000/api/v1/driver/login',
       'http://10.0.2.2:8000/api/v1/driver/login',
       'http://localhost:8000/api/v1/driver/login',
@@ -71,16 +90,22 @@ export default function LoginScreen() {
             email: data.user?.email || email.trim(),
             mobile: data.driver?.mobile_number || data.operator?.contact_number || '09188887777',
             plateNumber: data.tricycle?.plate_number || 'TRV-BRGY8',
+            codingSchemeNumber: data.tricycle?.coding_scheme_number || data.tricycle?.body_number || '0142',
             toda: data.operator?.toda_zone || data.tricycle?.toda_zone || 'TODA Brgy. 8',
             franchiseId: data.driver?.license_number || data.operator?.license_number || 'N01-18-000888',
             rating: data.driver?.rating || 5.0,
-            totalTrips: data.driver?.total_trips || 0,
+            totalTrips: data.driver?.total_trips ?? 0,
+            trackingCapability: data.tricycle?.tracking_capability || 'mobile_only',
+            trackingMode: data.tricycle?.active_tracking_mode || (data.tricycle?.tracking_capability === 'iot_enabled' ? 'iot_device' : 'mobile_app'),
             isOnline: true,
           });
           setIsRegistered(true);
           break;
         } else {
-          lastErrMsg = data.message || 'Invalid credentials.';
+          lastErrMsg = data.message || 'Invalid email or password.';
+          if (response.status === 401 || response.status === 403 || response.status === 422) {
+            break;
+          }
         }
       } catch (err: any) {
         lastErrMsg = err.message || 'Connection error to server.';
@@ -92,7 +117,7 @@ export default function LoginScreen() {
     if (loggedIn) {
       navigation.replace('Main');
     } else {
-      Alert.alert('Login Error', lastErrMsg);
+      setAuthError(lastErrMsg || 'Invalid email or password.');
     }
   };
 
@@ -125,15 +150,23 @@ export default function LoginScreen() {
 
         {/* LOGIN CARD */}
         <View style={styles.card}>
+          {/* AUTHENTICATION ERROR BANNER */}
+          {!!authError && (
+            <View style={styles.authErrorCard}>
+              <Ionicons name="alert-circle" size={20} color={COLORS.danger} style={{ marginRight: 8 }} />
+              <Text style={styles.authErrorText}>{authError}</Text>
+            </View>
+          )}
+
           <Text style={styles.label}>
             Email Address / Driver ID
           </Text>
 
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, !!emailError && styles.inputError]}>
             <Ionicons
               name="mail-outline"
               size={22}
-              color={COLORS.gray}
+              color={emailError ? COLORS.danger : COLORS.gray}
             />
 
             <TextInput
@@ -141,21 +174,25 @@ export default function LoginScreen() {
               placeholderTextColor="#999"
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) setEmailError('');
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
+          {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
 
           <Text style={styles.label}>
             Password
           </Text>
 
-          <View style={styles.inputContainer}>
+          <View style={[styles.inputContainer, !!passwordError && styles.inputError]}>
             <Ionicons
               name="lock-closed-outline"
               size={22}
-              color={COLORS.gray}
+              color={passwordError ? COLORS.danger : COLORS.gray}
             />
 
             <TextInput
@@ -164,7 +201,10 @@ export default function LoginScreen() {
               style={styles.input}
               secureTextEntry={!showPassword}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError('');
+              }}
             />
 
             <TouchableOpacity
@@ -181,6 +221,7 @@ export default function LoginScreen() {
               />
             </TouchableOpacity>
           </View>
+          {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
 
           {/* OPTIONS */}
           <View style={styles.options}>
@@ -324,6 +365,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 10,
     color: COLORS.black,
+  },
+
+  inputError: {
+    borderColor: COLORS.danger,
+    borderWidth: 1.5,
+  },
+
+  authErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+
+  authErrorText: {
+    flex: 1,
+    color: COLORS.danger,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  errorText: {
+    color: COLORS.danger,
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+    fontWeight: '600',
   },
 
   options: {

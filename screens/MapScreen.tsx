@@ -16,9 +16,18 @@ import { useNavigation } from '@react-navigation/native';
 
 import COLORS from '../theme/colors';
 import { MOCK_BOOKING_REQUEST } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 
 export default function MapScreen() {
   const navigation = useNavigation<any>();
+  const { driverProfile } = useAuth();
+
+  const getHost = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+      return window.location.hostname;
+    }
+    return '192.168.254.204';
+  };
 
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState({
@@ -26,26 +35,33 @@ export default function MapScreen() {
     longitude: 120.622139,
   });
 
-  const getHost = () => {
-    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-      return window.location.hostname;
-    }
-    return '192.168.254.205';
-  };
-
   const sendDriverLocation = async (lat: number, lng: number) => {
-    try {
-      const host = getHost();
-      await fetch(`http://${host}:8000/api/v1/driver/location`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ latitude: lat, longitude: lng }),
-      });
-    } catch (e) {
-      console.log('Driver location post notice:', e);
+    const host = getHost();
+    const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+    const apiUrls = [
+      `http://${host}:8000/api/v1/driver/location?driver_id=${driverId}`,
+      `http://192.168.254.204:8000/api/v1/driver/location?driver_id=${driverId}`,
+    ];
+
+    for (const url of apiUrls) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            driver_id: driverId,
+            user_id: driverId,
+            latitude: lat,
+            longitude: lng,
+            speed_kmh: 24.5,
+            heading_deg: 180.0,
+          }),
+        });
+        if (response.ok) break;
+      } catch (e) {}
     }
   };
 
@@ -53,6 +69,27 @@ export default function MapScreen() {
 
   useEffect(() => {
     let watchSubscription: Location.LocationSubscription | null = null;
+    let pollInterval: any = null;
+
+    async function checkActiveOrPendingBooking() {
+      try {
+        const host = getHost();
+        const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const url = driverId
+          ? `http://${host}:8000/api/v1/driver/bookings/active?driver_id=${driverId}`
+          : `http://${host}:8000/api/v1/driver/bookings/active`;
+
+        const res = await fetch(url, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        if (data.booking && ['pending', 'accepted', 'arrived', 'in_transit'].includes(data.booking.status)) {
+          setActiveBooking(data.booking);
+        } else {
+          setActiveBooking(null);
+        }
+      } catch (e) {}
+    }
 
     async function startHighAccuracyTracking() {
       try {
@@ -98,29 +135,21 @@ export default function MapScreen() {
         setLoading(false);
       }
 
-      // Check active booking status
-      try {
-        const host = getHost();
-        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/active`, {
-          headers: { 'Accept': 'application/json' },
-        });
-        const data = await res.json();
-        if (data.booking && ['pending', 'accepted', 'arrived', 'in_transit'].includes(data.booking.status)) {
-          setActiveBooking(data.booking);
-        } else {
-          setActiveBooking(null);
-        }
-      } catch (e) {}
+      await checkActiveOrPendingBooking();
     }
 
     startHighAccuracyTracking();
+    pollInterval = setInterval(checkActiveOrPendingBooking, 3000);
 
     return () => {
       if (watchSubscription) {
         watchSubscription.remove();
       }
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
-  }, []);
+  }, [driverProfile]);
 
   if (loading) {
     return (
@@ -273,7 +302,33 @@ export default function MapScreen() {
           <TouchableOpacity
             style={styles.actionBtn}
             activeOpacity={0.88}
-            onPress={() => navigation.navigate('BookingRequest', { bookingRequest: activeBooking })}
+            onPress={() => {
+              const parsedRequest = {
+                id: activeBooking.id,
+                bookingCode: activeBooking.booking_code,
+                fare: activeBooking.fare_amount ? `₱${parseFloat(activeBooking.fare_amount).toFixed(2)}` : '₱45.00',
+                distance: activeBooking.distance_km ? `${activeBooking.distance_km} km` : '2.5 km',
+                eta: activeBooking.estimated_duration_mins ? `${activeBooking.estimated_duration_mins} mins` : '8 mins',
+                pickupLocation: activeBooking.pickup_name || 'Pickup Point',
+                destination: activeBooking.dropoff_name || 'Destination Point',
+                pickupCoords: {
+                  latitude: parseFloat(activeBooking.pickup_lat) || 14.0725,
+                  longitude: parseFloat(activeBooking.pickup_lng) || 120.6315,
+                },
+                dropoffCoords: {
+                  latitude: parseFloat(activeBooking.dropoff_lat) || 14.0685,
+                  longitude: parseFloat(activeBooking.dropoff_lng) || 120.6285,
+                },
+                passenger: {
+                  name: activeBooking.passenger?.user?.name || 'Passenger',
+                  rating: activeBooking.passenger?.rating || 5.0,
+                  totalRides: activeBooking.passenger?.total_rides || 0,
+                  mobile: activeBooking.passenger?.mobile_number || '09191234567',
+                },
+                todaName: activeBooking.toda_zone?.name || 'TODA Coverage Zone',
+              };
+              navigation.navigate('BookingRequest', { bookingRequest: parsedRequest });
+            }}
           >
             <View style={styles.actionBtnInner}>
               <View style={styles.actionBtnLeft}>

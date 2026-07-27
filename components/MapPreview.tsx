@@ -11,10 +11,16 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 
 import COLORS from '../theme/colors';
-import { MOCK_BOOKING_REQUEST } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 
 export default function MapPreview() {
   const navigation = useNavigation<any>();
+  const { driverProfile } = useAuth();
+
+  const isMobileGps =
+    driverProfile?.trackingMode === 'mobile_app' ||
+    driverProfile?.trackingCapability === 'mobile_only' ||
+    (driverProfile?.email && (driverProfile.email.includes('rsantos') || driverProfile.email.includes('mobilegps')));
 
   const [location, setLocation] = useState({
     latitude: 14.064218,
@@ -24,6 +30,28 @@ export default function MapPreview() {
   const [activeBooking, setActiveBooking] = useState<any>(null);
 
   useEffect(() => {
+    let pollInterval: any = null;
+
+    async function fetchActiveOrPendingBooking() {
+      try {
+        const host = getHost();
+        const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const url = driverId
+          ? `http://${host}:8000/api/v1/driver/bookings/active?driver_id=${driverId}`
+          : `http://${host}:8000/api/v1/driver/bookings/active`;
+
+        const res = await fetch(url, {
+          headers: { 'Accept': 'application/json' },
+        });
+        const data = await res.json();
+        if (data.booking && ['pending', 'accepted', 'arrived', 'in_transit'].includes(data.booking.status)) {
+          setActiveBooking(data.booking);
+        } else {
+          setActiveBooking(null);
+        }
+      } catch (err) {}
+    }
+
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -38,21 +66,15 @@ export default function MapPreview() {
         }
       } catch (e) {}
 
-      // Fetch active booking status
-      try {
-        const host = getHost();
-        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/active`, {
-          headers: { 'Accept': 'application/json' },
-        });
-        const data = await res.json();
-        if (data.booking && ['pending', 'accepted', 'arrived', 'in_transit'].includes(data.booking.status)) {
-          setActiveBooking(data.booking);
-        } else {
-          setActiveBooking(null);
-        }
-      } catch (err) {}
+      await fetchActiveOrPendingBooking();
     })();
-  }, []);
+
+    pollInterval = setInterval(fetchActiveOrPendingBooking, 3000);
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [driverProfile]);
 
   const driverLat = location.latitude;
   const driverLng = location.longitude;
@@ -168,8 +190,15 @@ export default function MapPreview() {
         {/* Overlay Badges */}
         <View style={styles.overlayTopLeft}>
           <View style={styles.livePulse}>
-            <View style={styles.dot} />
-            <Text style={styles.pulseText}>LIVE COVERAGE</Text>
+            <Ionicons
+              name={isMobileGps ? 'location' : 'hardware-chip'}
+              size={12}
+              color={COLORS.primary}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.pulseText}>
+              {isMobileGps ? 'MOBILE GPS ACTIVE • LOCATION ONLINE' : 'IoT GPS ACTIVE • TELEMATICS ONLINE'}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>

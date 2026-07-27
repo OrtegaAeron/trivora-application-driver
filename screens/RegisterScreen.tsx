@@ -47,65 +47,77 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [regError, setRegError] = useState('');
 
   const handleRegister = async () => {
+    setRegError('');
     if (!fullName.trim() || !email.trim() || !mobile.trim() || !plateNumber.trim() || !toda.trim() || !franchiseId.trim() || !password || !confirmPassword) {
-      Alert.alert('Incomplete Form', 'Please fill in all fields before registering.');
+      const msg = 'Please fill in all fields before registering.';
+      setRegError(msg);
+      Alert.alert('Incomplete Form', msg);
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Your passwords do not match. Please try again.');
+      const msg = 'Your passwords do not match. Please try again.';
+      setRegError(msg);
+      Alert.alert('Password Mismatch', msg);
       return;
     }
     if (password.length < 6) {
-      Alert.alert('Weak Password', 'Password must be at least 6 characters.');
+      const msg = 'Password must be at least 6 characters.';
+      setRegError(msg);
+      Alert.alert('Weak Password', msg);
       return;
     }
 
     setLoading(true);
 
-    const apiUrls = [
-      'http://192.168.254.205:8000/api/v1/driver/register',
-      'http://10.0.2.2:8000/api/v1/driver/register',
-      'http://localhost:8000/api/v1/driver/register',
-      'http://127.0.0.1:8000/api/v1/driver/register',
-    ];
+    const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '192.168.254.204';
+    const apiUrl = `http://${host}:8000/api/v1/driver/register`;
+    const REQUEST_TIMEOUT_MS = 4000;
 
     let successResponse = null;
     let lastErrorMsg = '';
 
-    for (const url of apiUrls) {
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify({
-            name: fullName.trim(),
-            email: email.trim(),
-            mobile_number: mobile.trim(),
-            plate_number: plateNumber.trim().toUpperCase(),
-            toda: toda.trim(),
-            license_number: franchiseId.trim().toUpperCase(),
-            tracking_capability: trackingMode,
-            iot_device_id: trackingMode === 'iot_enabled' ? iotDeviceId.trim() : null,
-            password: password,
-          }),
-        });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-        const data = await response.json();
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          name: fullName.trim(),
+          email: email.trim(),
+          mobile_number: mobile.trim(),
+          plate_number: plateNumber.trim().toUpperCase(),
+          toda: toda.trim(),
+          license_number: franchiseId.trim().toUpperCase(),
+          tracking_capability: trackingMode,
+          iot_device_id: trackingMode === 'iot_enabled' ? iotDeviceId.trim() : null,
+          password: password,
+        }),
+      });
 
-        if (response.ok && data.success) {
-          successResponse = data;
-          break;
+      clearTimeout(timeout);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        successResponse = data;
+      } else {
+        if (data.errors) {
+          lastErrorMsg = Object.values(data.errors).flat().join(', ');
         } else {
-          lastErrorMsg = data.message || (data.errors ? Object.values(data.errors).flat().join(', ') : 'Validation failed.');
+          lastErrorMsg = data.message || 'Validation failed.';
         }
-      } catch (err: any) {
-        lastErrorMsg = err.message || 'Connection error to backend server.';
       }
+    } catch (err: any) {
+      clearTimeout(timeout);
+      lastErrorMsg = err.name === 'AbortError' ? 'Request timed out. Please check your network connection.' : (err.message || 'Connection error to backend server.');
     }
 
     setLoading(false);
@@ -142,8 +154,9 @@ export default function RegisterScreen() {
         );
       }
     } else {
+      setRegError(lastErrorMsg);
       if (Platform.OS === 'web') {
-        alert(`Registration Error: ${lastErrorMsg || 'Could not connect to database server.'}`);
+        alert(`Registration Error:\n${lastErrorMsg || 'Could not connect to database server.'}`);
       } else {
         Alert.alert('Registration Error', lastErrorMsg || 'Could not connect to database server.');
       }
@@ -213,6 +226,13 @@ export default function RegisterScreen() {
 
         {/* PERSONAL INFO */}
         <View style={styles.card}>
+          {regError ? (
+            <View style={styles.authErrorCard}>
+              <Ionicons name="alert-circle" size={20} color={COLORS.danger || '#EF4444'} style={{ marginRight: 8 }} />
+              <Text style={styles.authErrorText}>{regError}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.sectionHeader}>
             <Ionicons name="person-outline" size={20} color={COLORS.primary} />
             <Text style={styles.sectionTitle}>Personal Information</Text>
@@ -629,5 +649,21 @@ const styles = StyleSheet.create({
   todaOptionTextSelected: {
     color: COLORS.primary,
     fontWeight: 'bold',
+  },
+  authErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  authErrorText: {
+    flex: 1,
+    color: '#991B1B',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

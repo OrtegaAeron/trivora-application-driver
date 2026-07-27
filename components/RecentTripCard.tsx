@@ -10,23 +10,30 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
+import { useAuth } from '../services/AuthContext';
 
 export default function RecentTripCard() {
   const navigation = useNavigation<any>();
+  const { driverProfile } = useAuth();
   const [recentTrip, setRecentTrip] = useState<any>(null);
 
   const getHost = () => {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.205';
+    return '192.168.254.204';
   };
 
   useEffect(() => {
     async function fetchRecentTrip() {
       try {
         const host = getHost();
-        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+        const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const url = driverId
+          ? `http://${host}:8000/api/v1/driver/bookings/history?driver_id=${driverId}`
+          : `http://${host}:8000/api/v1/driver/bookings/history`;
+
+        const res = await fetch(url, {
           headers: { 'Accept': 'application/json' },
         });
         const data = await res.json();
@@ -36,7 +43,7 @@ export default function RecentTripCard() {
       } catch (e) {}
     }
     fetchRecentTrip();
-  }, []);
+  }, [driverProfile]);
 
   return (
     <View style={styles.container}>
@@ -114,13 +121,15 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 18,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
 
   topRow: {

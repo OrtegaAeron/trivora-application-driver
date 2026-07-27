@@ -11,8 +11,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
+import { useAuth } from '../services/AuthContext';
 
 export default function NotificationScreen() {
+  const { driverProfile } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -20,7 +22,7 @@ export default function NotificationScreen() {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.205';
+    return '192.168.254.204';
   };
 
   useEffect(() => {
@@ -28,10 +30,12 @@ export default function NotificationScreen() {
       try {
         const host = getHost();
         const list: any[] = [];
+        const userId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const userParam = userId ? `?user_id=${userId}` : '';
 
         // 1. Pending Incoming Requests
         try {
-          const pendingRes = await fetch(`http://${host}:8000/api/v1/driver/bookings/pending`, {
+          const pendingRes = await fetch(`http://${host}:8000/api/v1/driver/bookings/pending${userParam}`, {
             headers: { 'Accept': 'application/json' },
           });
           const pendingData = await pendingRes.json();
@@ -53,7 +57,7 @@ export default function NotificationScreen() {
 
         // 2. Active Trip Stage Notifications
         try {
-          const activeRes = await fetch(`http://${host}:8000/api/v1/driver/bookings/active`, {
+          const activeRes = await fetch(`http://${host}:8000/api/v1/driver/bookings/active${userParam}`, {
             headers: { 'Accept': 'application/json' },
           });
           const activeData = await activeRes.json();
@@ -94,9 +98,9 @@ export default function NotificationScreen() {
           }
         } catch (err) {}
 
-        // 3. Completed Trip History Notifications
+        // 3. Completed Trip History Notifications for logged in driver
         try {
-          const histRes = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+          const histRes = await fetch(`http://${host}:8000/api/v1/driver/bookings/history${userParam}`, {
             headers: { 'Accept': 'application/json' },
           });
           const histData = await histRes.json();
@@ -141,7 +145,7 @@ export default function NotificationScreen() {
     }
 
     fetchNotifications();
-  }, []);
+  }, [driverProfile]);
 
   const getIconConfig = (type: string) => {
     switch (type) {

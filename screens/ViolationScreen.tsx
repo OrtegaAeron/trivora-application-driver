@@ -121,8 +121,11 @@ export default function ViolationScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="ribbon-outline" size={48} color={COLORS.gray} />
-            <Text style={styles.emptyText}>No violation records found.</Text>
+            <View style={styles.emptyShieldBadge}>
+              <Ionicons name="shield-checkmark" size={42} color={COLORS.success} />
+            </View>
+            <Text style={styles.emptyTitle}>Clean Driver Record!</Text>
+            <Text style={styles.emptySub}>No traffic citations, scheme violations, or penalty records found under your MTOP permit.</Text>
           </View>
         }
       />
@@ -426,5 +429,32 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: 'bold',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 24,
+  },
+  emptyShieldBadge: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: COLORS.black,
+    marginBottom: 6,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: COLORS.gray,
+    textAlign: 'center',
+    lineHeight: 19,
   },
 });

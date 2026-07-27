@@ -24,7 +24,7 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.205';
+    return '192.168.254.204';
   };
 
   useEffect(() => {
@@ -90,8 +90,15 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
   if (!hasRequest || requestsList.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Ionicons name="radio-outline" size={28} color={COLORS.primary} />
-        <Text style={styles.emptyText}>Waiting for incoming TODA booking requests...</Text>
+        <View style={styles.emptyRadarBadge}>
+          <Ionicons name="radio-outline" size={32} color={COLORS.primary} />
+        </View>
+        <Text style={styles.emptyTitle}>Online & Ready for Bookings</Text>
+        <Text style={styles.emptyText}>Standing by for incoming TODA passenger requests near your zone...</Text>
+        <View style={styles.liveIndicatorRow}>
+          <View style={styles.greenPulseDot} />
+          <Text style={styles.liveIndicatorText}>LIVE DISPATCH SCANNING ACTIVE</Text>
+        </View>
       </View>
     );
   }
@@ -357,10 +364,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 3,
   },
+  emptyRadarBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: COLORS.black,
+    marginBottom: 4,
+  },
   emptyText: {
     color: COLORS.gray,
-    fontSize: 14,
-    marginTop: 8,
-    fontWeight: '500',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  liveIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+  greenPulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#16A34A',
+    marginRight: 8,
+  },
+  liveIndicatorText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#15803D',
+    letterSpacing: 0.5,
   },
 });

@@ -13,30 +13,74 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
 import { MOCK_BOOKING_REQUEST } from '../services/api';
+import { useAuth } from '../services/AuthContext';
 
 export default function TripAcceptedScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { driverProfile } = useAuth();
 
-  const request = route.params?.bookingRequest || MOCK_BOOKING_REQUEST;
+  const rawRequest = route.params?.bookingRequest || MOCK_BOOKING_REQUEST;
+
+  const request = {
+    id: rawRequest.id,
+    bookingCode: rawRequest.bookingCode || rawRequest.booking_code || 'BK-TRIVORA',
+    fare: rawRequest.fare || (rawRequest.fare_amount ? `₱${parseFloat(rawRequest.fare_amount).toFixed(2)}` : '₱45.00'),
+    distance: rawRequest.distance || (rawRequest.distance_km ? `${rawRequest.distance_km} km` : '2.5 km'),
+    eta: rawRequest.eta || (rawRequest.estimated_duration_mins ? `${rawRequest.estimated_duration_mins} mins` : '8 mins'),
+    pickupLocation: rawRequest.pickupLocation || rawRequest.pickup_name || 'Pickup Point',
+    destination: rawRequest.destination || rawRequest.dropoff_name || 'Destination Point',
+    pickupCoords: {
+      latitude: parseFloat(rawRequest.pickupCoords?.latitude || rawRequest.pickup_lat) || 14.0725,
+      longitude: parseFloat(rawRequest.pickupCoords?.longitude || rawRequest.pickup_lng) || 120.6315,
+    },
+    dropoffCoords: {
+      latitude: parseFloat(rawRequest.dropoffCoords?.latitude || rawRequest.dropoff_lat) || 14.0685,
+      longitude: parseFloat(rawRequest.dropoffCoords?.longitude || rawRequest.dropoff_lng) || 120.6285,
+    },
+    passenger: {
+      name: rawRequest.passenger?.name || rawRequest.passenger?.user?.name || 'Passenger',
+      rating: rawRequest.passenger?.rating || 5.0,
+      totalRides: rawRequest.passenger?.totalRides || rawRequest.passenger?.total_rides || 0,
+      mobile: rawRequest.passenger?.mobile || rawRequest.passenger?.mobile_number || '09191234567',
+    },
+    todaName: rawRequest.todaName || rawRequest.toda_zone?.name || 'TODA Coverage Zone',
+  };
+
   const [tripStage, setTripStage] = useState<'accepted' | 'arrived' | 'in_transit' | 'completed'>('accepted');
 
   const getHost = () => {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.205';
+    return '192.168.254.204';
   };
 
   const sendDriverLocation = async (lat: number, lng: number) => {
-    try {
-      const host = getHost();
-      await fetch(`http://${host}:8000/api/v1/driver/location`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ latitude: lat, longitude: lng }),
-      });
-    } catch (e) {}
+    const host = getHost();
+    const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+    const apiUrls = [
+      `http://${host}:8000/api/v1/driver/location?driver_id=${driverId}`,
+      `http://192.168.254.204:8000/api/v1/driver/location?driver_id=${driverId}`,
+    ];
+
+    for (const url of apiUrls) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            driver_id: driverId,
+            user_id: driverId,
+            latitude: lat,
+            longitude: lng,
+            speed_kmh: 24.5,
+            heading_deg: 180.0,
+          }),
+        });
+        if (response.ok) break;
+      } catch (e) {}
+    }
   };
 
   useEffect(() => {
@@ -78,16 +122,32 @@ export default function TripAcceptedScreen() {
   }, []);
 
   const updateStage = async (nextStage: 'arrived' | 'in_transit' | 'completed') => {
-    try {
-      const host = getHost();
-      const bookingId = request.id || 1;
-      await fetch(`http://${host}:8000/api/v1/driver/bookings/${bookingId}/status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ status: nextStage }),
-      });
-    } catch (e) {
-      console.log('Stage update notice:', e);
+    const host = getHost();
+    const bookingId = request.id || 1;
+
+    const apiUrls = [
+      `http://${host}:8000/api/v1/driver/bookings/${bookingId}/status`,
+      `http://192.168.254.204:8000/api/v1/driver/bookings/${bookingId}/status`,
+      `http://192.168.254.205:8000/api/v1/driver/bookings/${bookingId}/status`,
+      `http://localhost:8000/api/v1/driver/bookings/${bookingId}/status`,
+      `http://127.0.0.1:8000/api/v1/driver/bookings/${bookingId}/status`,
+      `http://10.0.2.2:8000/api/v1/driver/bookings/${bookingId}/status`,
+    ];
+
+    for (const url of apiUrls) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ status: nextStage }),
+        });
+        if (response.ok) {
+          console.log(`[Driver Stage] Updated booking status to ${nextStage} via API.`);
+          break;
+        }
+      } catch (e) {
+        console.log('Stage update notice:', e);
+      }
     }
 
     if (nextStage === 'completed') {
