@@ -27,6 +27,7 @@ export default function LoginScreen() {
 
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [authError, setAuthError] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -36,6 +37,7 @@ export default function LoginScreen() {
     let hasError = false;
     setEmailError('');
     setPasswordError('');
+    setAuthError('');
 
     if (!email.trim()) {
       setEmailError('Email or Driver License Number is required.');
@@ -48,7 +50,6 @@ export default function LoginScreen() {
     }
 
     if (hasError) {
-      Alert.alert('Validation Error', 'Please complete all required fields correctly.');
       return;
     }
 
@@ -89,16 +90,19 @@ export default function LoginScreen() {
             email: data.user?.email || email.trim(),
             mobile: data.driver?.mobile_number || data.operator?.contact_number || '09188887777',
             plateNumber: data.tricycle?.plate_number || 'TRV-BRGY8',
+            codingSchemeNumber: data.tricycle?.coding_scheme_number || data.tricycle?.body_number || '0142',
             toda: data.operator?.toda_zone || data.tricycle?.toda_zone || 'TODA Brgy. 8',
             franchiseId: data.driver?.license_number || data.operator?.license_number || 'N01-18-000888',
             rating: data.driver?.rating || 5.0,
-            totalTrips: data.driver?.total_trips || 0,
+            totalTrips: data.driver?.total_trips ?? 0,
+            trackingCapability: data.tricycle?.tracking_capability || 'mobile_only',
+            trackingMode: data.tricycle?.active_tracking_mode || (data.tricycle?.tracking_capability === 'iot_enabled' ? 'iot_device' : 'mobile_app'),
             isOnline: true,
           });
           setIsRegistered(true);
           break;
         } else {
-          lastErrMsg = data.message || 'Invalid username/email or password.';
+          lastErrMsg = data.message || 'Invalid email or password.';
           if (response.status === 401 || response.status === 403 || response.status === 422) {
             break;
           }
@@ -113,9 +117,7 @@ export default function LoginScreen() {
     if (loggedIn) {
       navigation.replace('Main');
     } else {
-      setEmailError('Invalid email or password.');
-      setPasswordError('Invalid email or password.');
-      Alert.alert('Authentication Failed', lastErrMsg || 'Invalid credentials. Please verify your email and password.');
+      setAuthError(lastErrMsg || 'Invalid email or password.');
     }
   };
 
@@ -148,6 +150,14 @@ export default function LoginScreen() {
 
         {/* LOGIN CARD */}
         <View style={styles.card}>
+          {/* AUTHENTICATION ERROR BANNER */}
+          {!!authError && (
+            <View style={styles.authErrorCard}>
+              <Ionicons name="alert-circle" size={20} color={COLORS.danger} style={{ marginRight: 8 }} />
+              <Text style={styles.authErrorText}>{authError}</Text>
+            </View>
+          )}
+
           <Text style={styles.label}>
             Email Address / Driver ID
           </Text>
@@ -360,6 +370,25 @@ const styles = StyleSheet.create({
   inputError: {
     borderColor: COLORS.danger,
     borderWidth: 1.5,
+  },
+
+  authErrorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+
+  authErrorText: {
+    flex: 1,
+    color: COLORS.danger,
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   errorText: {

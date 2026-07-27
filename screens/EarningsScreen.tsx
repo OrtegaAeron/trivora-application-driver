@@ -10,12 +10,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../services/AuthContext';
 import COLORS from '../theme/colors';
 
 const { width } = Dimensions.get('window');
 
 export default function EarningsScreen() {
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('weekly');
+  const navigation = useNavigation<any>();
+  const { driverProfile } = useAuth();
+  const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month'>('today');
   const [loading, setLoading] = useState<boolean>(true);
   const [earningsSummary, setEarningsSummary] = useState({
     todayAmount: 0,
@@ -29,14 +33,19 @@ export default function EarningsScreen() {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.205';
+    return '192.168.254.204';
   };
 
   useEffect(() => {
     async function fetchDriverEarnings() {
       try {
         const host = getHost();
-        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+        const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const url = driverId
+          ? `http://${host}:8000/api/v1/driver/bookings/history?driver_id=${driverId}`
+          : `http://${host}:8000/api/v1/driver/bookings/history`;
+
+        const res = await fetch(url, {
           headers: { 'Accept': 'application/json' },
         });
         const data = await res.json();

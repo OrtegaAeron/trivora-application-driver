@@ -58,6 +58,9 @@ export default function TripDetailScreen() {
 
   const extras  = TRIP_EXTRAS[tripId] ?? { distance: rawTrip.distance_km ? `${rawTrip.distance_km} km` : '2.5 km', payment: (rawTrip.payment_method || 'Cash').toUpperCase(), passengerRating: 5.0, duration: rawTrip.estimated_duration_mins ? `${rawTrip.estimated_duration_mins} mins` : '8 mins' };
   const steps = isCompleted ? COMPLETED_STEPS : CANCELLED_STEPS;
+  const ratingObj = Array.isArray(rawTrip.rating) ? rawTrip.rating[0] : rawTrip.rating;
+  const actualRatingScore = ratingObj?.score ? Number(ratingObj.score) : null;
+  const actualComment = ratingObj?.comment ? ratingObj.comment : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -142,18 +145,25 @@ export default function TripDetailScreen() {
             </View>
             <View style={styles.passengerMeta}>
               <Text style={styles.passengerName}>{passengerName}</Text>
-              {isCompleted && (
+              {isCompleted && actualRatingScore ? (
                 <View style={styles.ratingRow}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <Ionicons
                       key={star}
-                      name="star"
+                      name={star <= actualRatingScore ? 'star' : 'star-outline'}
                       size={14}
                       color="#F59E0B"
                     />
                   ))}
-                  <Text style={styles.ratingText}>5.0</Text>
+                  <Text style={styles.ratingText}>{actualRatingScore.toFixed(1)}</Text>
                 </View>
+              ) : isCompleted ? (
+                <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>Not Rated Yet</Text>
+              ) : null}
+              {actualComment && (
+                <Text style={{ fontSize: 13, color: '#475569', fontStyle: 'italic', marginTop: 4 }}>
+                  "{actualComment}"
+                </Text>
               )}
             </View>
           </View>
@@ -188,6 +198,21 @@ export default function TripDetailScreen() {
           {steps.map((step, index) => {
             const isLast = index === steps.length - 1;
             const isCancelledStep = step.icon === 'close-circle';
+            
+            // Map step to timestamp
+            let stepTime = '';
+            if (index === 0 && (rawTrip.accepted_at || rawTrip.requested_at)) {
+              stepTime = new Date(rawTrip.accepted_at || rawTrip.requested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (index === 1 && rawTrip.arrived_at) {
+              stepTime = new Date(rawTrip.arrived_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (index === 2 && rawTrip.started_at) {
+              stepTime = new Date(rawTrip.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (index === 3 && (rawTrip.completed_at || rawTrip.updated_at)) {
+              stepTime = new Date(rawTrip.completed_at || rawTrip.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else if (isCancelledStep && rawTrip.cancelled_at) {
+              stepTime = new Date(rawTrip.cancelled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
             return (
               <View key={index} style={styles.timelineRow}>
                 <View style={styles.timelineIconCol}>
@@ -205,12 +230,19 @@ export default function TripDetailScreen() {
                   </View>
                   {!isLast && <View style={styles.timelineConnector} />}
                 </View>
-                <Text style={[
-                  styles.timelineLabel,
-                  isCancelledStep && { color: COLORS.danger },
-                ]}>
-                  {step.label}
-                </Text>
+                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[
+                    styles.timelineLabel,
+                    isCancelledStep && { color: COLORS.danger },
+                  ]}>
+                    {step.label}
+                  </Text>
+                  {stepTime ? (
+                    <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>
+                      {stepTime}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
             );
           })}

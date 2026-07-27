@@ -26,12 +26,85 @@ export default function ProfileScreen() {
   const [mobile, setMobile] = useState(driverProfile.mobile);
   const [plateNumber, setPlateNumber] = useState(driverProfile.plateNumber);
   const [toda, setToda] = useState(driverProfile.toda);
-  const [franchiseId] = useState(driverProfile.franchiseId ?? MOCK_DRIVER.franchiseId ?? '');
+  const [franchiseId] = useState(driverProfile.franchiseId ?? '');
 
-  // Use codingInfo from real driver or fall back to MOCK
-  const codingInfo = driverProfile.codingInfo ?? MOCK_DRIVER.codingInfo;
-  const rating = driverProfile.rating || MOCK_DRIVER.rating;
-  const totalTrips = driverProfile.totalTrips || MOCK_DRIVER.totalTrips;
+  // Calculate dynamic vehicle coding status based on database coding_scheme_number
+  const calculateCodingStatus = (schemeNo: string, plateNo: string) => {
+    const rawVal = schemeNo || plateNo || '';
+    const digits = rawVal.replace(/\D/g, '');
+    const lastDigit = digits.length > 0 ? parseInt(digits[digits.length - 1], 10) : 2;
+    const todayIndex = new Date().getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+
+    let codingDay = 'Monday';
+    let isCodingToday = false;
+    let restrictedDigits = '1 and 2';
+
+    if (lastDigit === 1 || lastDigit === 2) {
+      codingDay = 'Monday';
+      isCodingToday = todayIndex === 1;
+      restrictedDigits = '1 and 2';
+    } else if (lastDigit === 3 || lastDigit === 4) {
+      codingDay = 'Tuesday';
+      isCodingToday = todayIndex === 2;
+      restrictedDigits = '3 and 4';
+    } else if (lastDigit === 5 || lastDigit === 6) {
+      codingDay = 'Wednesday';
+      isCodingToday = todayIndex === 3;
+      restrictedDigits = '5 and 6';
+    } else if (lastDigit === 7 || lastDigit === 8) {
+      codingDay = 'Thursday';
+      isCodingToday = todayIndex === 4;
+      restrictedDigits = '7 and 8';
+    } else if (lastDigit === 9 || lastDigit === 0) {
+      codingDay = 'Friday';
+      isCodingToday = todayIndex === 5;
+      restrictedDigits = '9 and 0';
+    }
+
+    return {
+      codingDay,
+      isCodingToday,
+      canOperate: !isCodingToday,
+      restrictedDigits,
+      scheduleHours: '7:00 AM - 7:00 PM',
+    };
+  };
+
+  const codingSchemeNo = driverProfile.codingSchemeNumber || '0142';
+  const codingInfo = driverProfile.codingInfo || calculateCodingStatus(codingSchemeNo, driverProfile.plateNumber);
+  const [rating, setRating] = useState<number>(driverProfile.rating ?? 5.0);
+  const [totalTrips, setTotalTrips] = useState<number>(driverProfile.totalTrips ?? 0);
+
+  React.useEffect(() => {
+    async function fetchLiveProfileStats() {
+      try {
+        const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '192.168.254.204';
+        const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const url = driverId
+          ? `http://${host}:8000/api/v1/driver/bookings/history?driver_id=${driverId}`
+          : `http://${host}:8000/api/v1/driver/bookings/history`;
+
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        if (data.bookings) {
+          const completed = data.bookings.filter((b: any) => b.status === 'completed');
+          setTotalTrips(completed.length);
+
+          const getRatingScore = (b: any) => {
+            const r = Array.isArray(b.rating) ? b.rating[0] : b.rating;
+            return r?.score ? Number(r.score) : null;
+          };
+
+          const rated = completed.filter((b: any) => getRatingScore(b) !== null);
+          if (rated.length > 0) {
+            const sum = rated.reduce((acc: number, b: any) => acc + (getRatingScore(b) || 0), 0);
+            setRating(Math.round((sum / rated.length) * 10) / 10);
+          }
+        }
+      } catch (e) {}
+    }
+    fetchLiveProfileStats();
+  }, [driverProfile]);
 
   const handleSaveProfile = () => {
     Alert.alert('Profile Saved', 'Your driver profile details have been updated successfully.');
@@ -112,8 +185,8 @@ export default function ProfileScreen() {
 
               <View style={styles.codingDetailsGrid}>
                 <View style={styles.codingDetailBox}>
-                  <Text style={styles.codingDetailLabel}>Plate Body No.</Text>
-                  <Text style={styles.codingDetailVal}>{plateNumber}</Text>
+                  <Text style={styles.codingDetailLabel}>Coding Scheme No.</Text>
+                  <Text style={styles.codingDetailVal}>{codingSchemeNo}</Text>
                 </View>
 
                 <View style={styles.codingDetailBox}>

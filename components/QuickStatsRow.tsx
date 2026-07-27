@@ -8,7 +8,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
 
+import { useAuth } from '../services/AuthContext';
+
 export default function QuickStatsRow() {
+  const { driverProfile } = useAuth();
   const [stats, setStats] = useState({
     todayEarnings: '₱0.00',
     completedTrips: 0,
@@ -20,39 +23,64 @@ export default function QuickStatsRow() {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.205';
+    return '192.168.254.204';
   };
 
   useEffect(() => {
     async function fetchStats() {
       try {
         const host = getHost();
-        const res = await fetch(`http://${host}:8000/api/v1/driver/bookings/history`, {
+        const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const url = driverId
+          ? `http://${host}:8000/api/v1/driver/bookings/history?driver_id=${driverId}`
+          : `http://${host}:8000/api/v1/driver/bookings/history`;
+
+        const res = await fetch(url, {
           headers: { 'Accept': 'application/json' },
         });
         const data = await res.json();
         if (data.bookings) {
           const completed = data.bookings.filter((b: any) => b.status === 'completed');
           let todaySum = 0;
+          let todayTripsCount = 0;
           const todayStr = new Date().toDateString();
 
           completed.forEach((b: any) => {
             if (new Date(b.created_at || b.requested_at).toDateString() === todayStr) {
               todaySum += parseFloat(b.fare_amount || 0);
+              todayTripsCount += 1;
             }
           });
 
+          const getRatingScore = (b: any) => {
+            const r = Array.isArray(b.rating) ? b.rating[0] : b.rating;
+            return r?.score ? Number(r.score) : null;
+          };
+
+          let avgRating = driverProfile?.rating || 5.0;
+          const ratedBookings = completed.filter((b: any) => getRatingScore(b) !== null);
+          if (ratedBookings.length > 0) {
+            const sumRating = ratedBookings.reduce((acc: number, b: any) => acc + (getRatingScore(b) || 0), 0);
+            avgRating = roundTo(sumRating / ratedBookings.length, 1);
+          }
+
           setStats({
             todayEarnings: `₱${todaySum.toFixed(2)}`,
-            completedTrips: completed.length,
-            driverRating: 4.9,
+            completedTrips: todayTripsCount,
+            driverRating: avgRating,
             acceptanceRate: '100%',
           });
         }
       } catch (e) {}
     }
+
+    function roundTo(num: number, decimals: number) {
+      const factor = Math.pow(10, decimals);
+      return Math.round(num * factor) / factor;
+    }
+
     fetchStats();
-  }, []);
+  }, [driverProfile]);
 
   return (
     <View style={styles.container}>

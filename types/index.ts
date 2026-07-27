@@ -12,6 +12,9 @@ export interface DriverProfile {
   email: string;
   mobile: string;
   plateNumber: string;
+  codingSchemeNumber?: string;
+  trackingCapability?: 'mobile_only' | 'iot_enabled' | 'dual_mode';
+  trackingMode?: 'mobile_app' | 'iot_device';
   toda: string;
   franchiseId?: string;
   rating: number;
