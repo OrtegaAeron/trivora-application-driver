@@ -56,7 +56,7 @@ export default function LoginScreen() {
     setLoading(true);
 
     const apiUrls = [
-      'http://192.168.254.204:8000/api/v1/driver/login',
+      'http://172.20.10.2:8000/api/v1/driver/login',
       'http://192.168.254.205:8000/api/v1/driver/login',
       'http://10.0.2.2:8000/api/v1/driver/login',
       'http://localhost:8000/api/v1/driver/login',

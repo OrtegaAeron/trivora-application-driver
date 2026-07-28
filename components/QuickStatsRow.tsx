@@ -23,7 +23,7 @@ export default function QuickStatsRow() {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.204';
+    return '172.20.10.2';
   };
 
   useEffect(() => {

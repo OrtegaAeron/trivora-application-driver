@@ -78,7 +78,7 @@ export default function ProfileScreen() {
   React.useEffect(() => {
     async function fetchLiveProfileStats() {
       try {
-        const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '192.168.254.204';
+        const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '172.20.10.2';
         const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
         const url = driverId
           ? `http://${host}:8000/api/v1/driver/bookings/history?driver_id=${driverId}`

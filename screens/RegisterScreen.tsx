@@ -72,7 +72,7 @@ export default function RegisterScreen() {
 
     setLoading(true);
 
-    const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '192.168.254.204';
+    const host = typeof window !== 'undefined' && window.location?.hostname ? window.location.hostname : '172.20.10.2';
     const apiUrl = `http://${host}:8000/api/v1/driver/register`;
     const REQUEST_TIMEOUT_MS = 4000;
 

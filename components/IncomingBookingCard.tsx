@@ -10,6 +10,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
+import { useAuth } from '../services/AuthContext';
 
 interface IncomingBookingCardProps {
   hasRequest?: boolean;
@@ -17,6 +18,7 @@ interface IncomingBookingCardProps {
 
 export default function IncomingBookingCard({ hasRequest = true }: IncomingBookingCardProps) {
   const navigation = useNavigation<any>();
+  const { driverProfile } = useAuth();
   const [requestsList, setRequestsList] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
 
@@ -24,7 +26,7 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.204';
+    return '172.20.10.2';
   };
 
   useEffect(() => {
@@ -35,7 +37,12 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
       if (!hasRequest) return;
 
       try {
-        const response = await fetch(`http://${host}:8000/api/v1/driver/bookings/pending`, {
+        const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
+        const url = driverId
+          ? `http://${host}:8000/api/v1/driver/bookings/pending?driver_id=${driverId}`
+          : `http://${host}:8000/api/v1/driver/bookings/pending`;
+
+        const response = await fetch(url, {
           headers: { 'Accept': 'application/json' },
         });
         const text = await response.text();
@@ -85,7 +92,7 @@ export default function IncomingBookingCard({ hasRequest = true }: IncomingBooki
     pollPendingRequests();
     intervalId = setInterval(pollPendingRequests, 3000);
     return () => clearInterval(intervalId);
-  }, [hasRequest]);
+  }, [hasRequest, driverProfile]);
 
   if (!hasRequest || requestsList.length === 0) {
     return (
