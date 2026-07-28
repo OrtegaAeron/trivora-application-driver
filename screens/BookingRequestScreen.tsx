@@ -118,7 +118,7 @@ export default function BookingRequestScreen() {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.204';
+    return '172.20.10.2';
   };
 
   const handleAccept = async () => {
@@ -128,7 +128,7 @@ export default function BookingRequestScreen() {
 
     const apiUrls = [
       `http://${host}:8000/api/v1/driver/bookings/${bookingId}/accept`,
-      `http://192.168.254.204:8000/api/v1/driver/bookings/${bookingId}/accept`,
+      `http://172.20.10.2:8000/api/v1/driver/bookings/${bookingId}/accept`,
       `http://192.168.254.205:8000/api/v1/driver/bookings/${bookingId}/accept`,
       `http://localhost:8000/api/v1/driver/bookings/${bookingId}/accept`,
       `http://127.0.0.1:8000/api/v1/driver/bookings/${bookingId}/accept`,

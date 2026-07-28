@@ -53,7 +53,7 @@ export default function TripAcceptedScreen() {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
       return window.location.hostname;
     }
-    return '192.168.254.204';
+    return '172.20.10.2';
   };
 
   const sendDriverLocation = async (lat: number, lng: number) => {
@@ -61,7 +61,7 @@ export default function TripAcceptedScreen() {
     const driverId = driverProfile ? (driverProfile.id || '').replace('DRV-', '') : '';
     const apiUrls = [
       `http://${host}:8000/api/v1/driver/location?driver_id=${driverId}`,
-      `http://192.168.254.204:8000/api/v1/driver/location?driver_id=${driverId}`,
+      `http://172.20.10.2:8000/api/v1/driver/location?driver_id=${driverId}`,
     ];
 
     for (const url of apiUrls) {
@@ -127,7 +127,7 @@ export default function TripAcceptedScreen() {
 
     const apiUrls = [
       `http://${host}:8000/api/v1/driver/bookings/${bookingId}/status`,
-      `http://192.168.254.204:8000/api/v1/driver/bookings/${bookingId}/status`,
+      `http://172.20.10.2:8000/api/v1/driver/bookings/${bookingId}/status`,
       `http://192.168.254.205:8000/api/v1/driver/bookings/${bookingId}/status`,
       `http://localhost:8000/api/v1/driver/bookings/${bookingId}/status`,
       `http://127.0.0.1:8000/api/v1/driver/bookings/${bookingId}/status`,
